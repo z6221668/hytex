@@ -1,0 +1,31 @@
+// 项目“至今”沿用提供的简历，请在发布前按实际情况更新。
+window.RESUME = {
+  skills: [
+    { name: 'AI', kind: '模型接入与内容处理', description: '在业务服务中接入文字识别、语音转写和文本生成。做过台本生成与改写，以及视频解析、关键帧和封面生成工作流；了解 Spring AI。', size: 166, color: 'lime' },
+    { name: 'Spring', kind: 'Java 服务开发', description: '主要使用 Spring Boot 开发业务服务，配合 Spring Cloud Alibaba 处理微服务注册、配置和路由。参与过服务拆分、流控与熔断降级。', size: 154, color: 'green' },
+    { name: 'Java', kind: '业务接口与并发', description: '主要开发语言，用于业务接口、数据处理和系统对接。使用 CompletableFuture 并行处理独立任务和第三方请求，减少接口中的串行等待。', size: 100, color: 'warm' },
+    { name: 'Redis', kind: '缓存与并发控制', description: '缓存热点数据、令牌和临时业务状态。结合 Redisson 分布式锁处理并发操作，在批量导入中使用布隆过滤器减少重复查询。', size: 92, color: 'rose' },
+    { name: 'MySQL', kind: '关系型数据库', description: '保存用户、订单等业务数据，通过 SQL 查询和事务处理业务变更。做过慢 SQL、索引与表结构优化，并使用 ShardingSphere 按月份拆分日志表。', size: 96, color: 'blue' },
+    { name: 'RabbitMQ', kind: '异步消息', description: '将订单通知、客户分配等非即时任务交给消息队列处理。用于高峰削峰和消息分发，让主接口更早返回。', size: 90, color: 'warm' },
+    { name: 'Nacos', kind: '服务注册与配置', description: '在 Spring Cloud Alibaba 项目中管理服务注册、发现和配置，让微服务找到彼此，并集中维护各环境的配置。', size: 84, color: 'green' },
+    { name: 'Linux', kind: '服务部署与维护', description: '部署并维护 Java 服务，处理运行环境和服务器问题。配合 Nginx 完成接口代理、负载均衡与服务更新。', size: 86, color: 'neutral' },
+    { name: '监控', kind: '指标与问题排查', description: '使用 Prometheus 收集指标、Grafana 查看运行情况，配合 Actuator 健康检查和 ELK 日志，定位接口、数据库和服务异常。', size: 82, color: 'neutral' },
+    { name: 'Flutter', kind: '移动端开发', description: '在牛圈项目参与 Flutter 前端开发，完成多端界面与 Spring Boot 接口对接，协同处理课程、资讯与社区互动流程。', size: 86, color: 'blue' },
+    { name: 'Electron', kind: '桌面端开发', description: '有 Electron 桌面应用开发经验，能够配合服务端接口完成桌面端的页面与业务交互。', size: 86, color: 'neutral' }
+  ],
+  projects: [
+    { title: '盘古数据中台 & 衍生产品', cardDescription: '用户、交易与智能内容处理服务。', category: 'ai', label: 'AI 应用 / 数据中台', period: '2025.04 — 2026.01', featured: true, number: '01', summary: '由 50+ 微服务组成，为「爱提词」「全能扫描王」提供用户、交易、内容处理和基础服务。爱提词提供台本生成、智能提词与语音转写；全能扫描王提供扫描识别、文档结构化和多格式导出。', tags: ['Spring Cloud Alibaba', 'Spring Boot', 'Redis', 'RabbitMQ', 'Elasticsearch'], details: ['参与核心基础服务迭代、服务治理升级、缓存体系重构与异步化改造，优化存量 SQL、索引和表结构。', '接入 OCR、ASR、文本分析与 Embedding 检索等模型服务，负责模型 API 封装及推理链路接入。', '在爱提词实现 AI 台本生成与改写；独立调研视频解析、关键帧生成与 Stable Diffusion 封面制作工作流。', '梳理多业务线的跨服务依赖，参与公共组件与 SDK 封装，方便不同产品接入中台服务。'] },
+    { title: 'XLEND 助贷平台', cardDescription: 'B / C 端贷款申请、审批与放款业务。', category: 'finance', label: '金融科技 / 微服务', period: '2024.04 — 至今', number: '02', summary: '面向香港市场的 B / C 端助贷产品，覆盖贷款申请、审批、放款与风控配置。机构端可以配置贷款产品和授信规则，用户端根据申请资料、信用情况与风控结果匹配贷款方案，并提供还款管理和逾期提醒。', tags: ['Spring Boot', 'ShardingSphere', 'Redisson', 'RabbitMQ'], details: ['负责 B / C 端核心业务开发，通过 Nacos 完成注册与配置管理，构建微服务协作。', '使用 CompletableFuture 并行处理接口任务与第三方请求；通过布隆过滤器、Redis、分批入库和批量提交优化大批量数据导入。', '按月份设计操作日志分表规则，随时间扩容；建设 Prometheus / Grafana 监控、Actuator 健康检查与 Nginx 负载均衡。', '使用 RabbitMQ 异步处理订单通知与审批结果推送，结合 Redisson 分布式锁处理并发下的业务一致性。'] },
+    { title: '贷超分期 & 流量平台', cardDescription: '贷款产品推荐、用户筛选与流量分发。', category: 'finance', label: '金融业务 / 性能优化', period: '2023.05 — 至今', number: '03', summary: '处理百万级用户及订单，根据用户信息、风控结果与商户规则推荐产品，提供流量分发和报表功能。后台支持按条件筛选用户、查看历史报表，以及调整产品推送与申请规则。', tags: ['Spring Cloud', 'OpenFeign', 'Redis', 'Prometheus'], details: ['对接 SaaS 中心与对外 API，通过 OpenFeign 与 CRM 服务通信。缓存热点用户数据，用 RabbitMQ 异步处理订单状态和通知消息，减少主流程等待。', '优化二次开发系统中的代码、查询和多线程逻辑，将持续约 20 分钟的数据库高负载降低到正常水平。', '搭建监控告警，维护 Linux 服务器，通过 Nginx 接口代理和负载均衡支持后端不停机更新。'] },
+    { title: '牛圈 · 知识付费平台', cardDescription: '课程、资讯、答疑与社区互动。', category: 'product', label: '产品研发 / 全栈开发', period: '2021.08 — 2022.02', number: '04', summary: '面向专业人士与学习用户的知识付费社区，提供课程、资讯、答疑与互动功能。用户可以付费获取专业内容，并通过评论、点赞等方式参与交流；前端使用 Flutter 适配多端。', tags: ['Flutter', 'Spring Boot', 'MyBatis', 'RabbitMQ'], details: ['使用 Flutter 实现前端多端兼容，基于 Spring Boot、Redis、RabbitMQ 和 MyBatis 搭建后端。', '缓存固定配置、图片与热点数据，减少重复读取和 OSS 请求；使用 RabbitMQ 分发点赞等非即时通知，并处理评论相关内容。', '通过多线程优化报表与相关业务处理。'] },
+    { title: '久一英语', cardDescription: '外教约课、订单与在线课堂对接。', category: 'product', label: '产品研发 / 在线教育', period: '2020.06 — 2022.02', number: '05', summary: '在线外教 APP，提供老师预约、教材查看和论坛功能。用户选择老师和档期后提交约课订单，系统对接第三方视频平台安排上课，并通过消息推送提醒订单状态与课程更新。', tags: ['Spring Boot', 'MyBatis', 'Redis', 'JPush'], details: ['负责订单、约课模块的开发与迭代，将约课订单对接到第三方在线视频教育平台，配合移动端完成预约到上课的业务流程。', '使用 Redis 缓存老师列表、档期等热点内容，通过 JPush 推送订单与课程消息。', '优化二次开发的后端代码，降低接口响应耗时并提升稳定性。'] },
+    { title: '草莓卷 CRM 客资系统', cardDescription: '影楼客资收集、跟踪、分配与报表。', category: 'product', label: '企业服务 / CRM', period: '2019.08 — 2020.05', number: '06', summary: '面向影楼的客户管理系统，覆盖客资收集、跟踪、分配、权限与渠道报表。客资按不同类型分模块管理，后台提供人事和系统配置，渠道报表用于查看客户来源与投入情况，并支持企业独立部署。', tags: ['Spring Cloud', 'Redis', 'RabbitMQ', 'WebSocket', 'Vue'], details: ['参与旧版升级与独立部署企业的业务开发，使用队列处理客户资源分发和分配。', '处理到店时间变更等员工通知，将第三方消息推送改为 RabbitMQ + WebSocket；同时优化报表查询，支持客资分配与渠道统计。', '承担开发组长职责，协调成员任务并推进交付。'] },
+    { title: '影楼 ERP 系统', cardDescription: '订单、礼服、人事与拍摄档期管理。', category: 'product', label: '企业服务 / ERP', period: '2018.10 — 2020.05', number: '07', summary: '后古定制化 CRM / ERP 系统，覆盖订单、礼服、人事、拍摄档期与业务报表。CRM 收集的客资进入开单流程，后续关联礼服、拍摄安排和人员交接，供不同岗位处理各自的业务环节。', tags: ['Spring Cloud', 'Redis', 'RabbitMQ', 'ELK'], details: ['通过 Redis 存储令牌、用户与热点信息，使用 RabbitMQ 异步处理订单；与前端协调下单处理方式，在订单高峰时进行消息削峰。', '引入 ELK 用于异常查看与告警分发，使用 RabbitMQ + WebSocket 改造消息推送。', '后期承担开发组长职责，安排任务、推进项目并及时处理问题。'] }
+  ],
+  experience: [
+    { period: '2025.04 — 2026.01', company: '上海折耳根信息科技有限公司', role: 'Java 开发工程师', description: '负责数据中台基础服务与 C 端应用后端开发，参与服务治理、缓存与异步处理改造，接入 AI 模型 API。', tags: ['数据中台', 'AI 应用', '性能优化'] },
+    { period: '2022.03 — 2025.03', company: '上海珑刻得网络科技有限公司重庆分公司', role: '高级后端研发工程师', description: '负责贷超流量平台开发与优化、中心系统及 SaaS 平台对接，参与架构设计、核心功能实现与技术文档建设。', tags: ['金融业务', '微服务', '系统集成'] },
+    { period: '2020.06 — 2022.02', company: '重庆魔法小文豪科技有限公司', role: '高级后端研发工程师', description: '负责 APP 后端与管理系统，协同移动端开发；同时参与 Electron 桌面应用与 Flutter 前端，积累完整产品研发经验。', tags: ['APP 后端', 'Flutter', 'Electron'] },
+    { period: '2018.10 — 2020.05', company: '杭州函木科技有限公司', role: '高级后端研发工程师', description: '参与影楼 CRM / ERP 系统的持续迭代、新项目主导开发与服务器维护，承担项目管理及开发组长职责。', tags: ['CRM / ERP', '项目推进', '团队协作'] }
+  ]
+};
