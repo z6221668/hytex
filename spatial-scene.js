@@ -40,6 +40,9 @@ async function initScene(renderer) {
   let skillReturnAt = 0;
   let skillTransfer = null, projectIndices = data.projects.map((_, i) => i);
   let projectPresentation = null;
+  let chapterAge = 0, hoverDirty = false, pointerInside = false;
+  const hovered = { project: -1, career: -1, query: false, letter: false, cover: false };
+  const springVelocities = new WeakMap();
   const pointer = new THREE.Vector2(), pointerTarget = new THREE.Vector2(), raycaster = new THREE.Raycaster();
   const projected = new THREE.Vector3(), world = new THREE.Vector3();
   const labels = document.querySelector('#scene-labels');
@@ -47,6 +50,19 @@ async function initScene(renderer) {
   const emit = (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail }));
   const ease = t => t < .5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
   const clamp = t => Math.min(1, Math.max(0, t));
+  // Exact damped spring solution keeps settling consistent at different frame rates.
+  function springTo(transform, key, target, dt, frequency = 10, damping = .82) {
+    let velocities = springVelocities.get(transform);
+    if (!velocities) { velocities = {}; springVelocities.set(transform, velocities); }
+    if (reduced.matches) { transform[key] = target; velocities[key] = 0; return; }
+    const offset = transform[key] - target, velocity = velocities[key] || 0;
+    if (Math.abs(offset) < .000001 && Math.abs(velocity) < .000001) { transform[key] = target; velocities[key] = 0; return; }
+    const decay = damping * frequency, oscillation = frequency * Math.sqrt(1 - damping * damping);
+    const attenuation = Math.exp(-decay * dt), sine = Math.sin(oscillation * dt), cosine = Math.cos(oscillation * dt);
+    transform[key] = target + attenuation * (offset * cosine + (velocity + decay * offset) / oscillation * sine);
+    velocities[key] = attenuation * (velocity * cosine - (decay * velocity + frequency * frequency * offset) / oscillation * sine);
+  }
+  const drift = (phase, amplitude = 1) => reduced.matches ? 0 : amplitude * (Math.sin(clock * .63 + phase) * .65 + Math.sin(clock * .37 + phase * 1.7) * .35);
   const resources = new Set();
   const blendScene = new THREE.Scene();
   const blendCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -133,9 +149,12 @@ async function initScene(renderer) {
   }
   // A constructed H is the front cover; independent layers reveal the depth of the mark.
   const cover = new THREE.Group(); groups[0].add(cover);
+  cover.name = 'cover';
+  const coverSheets = [];
   for (let i = 0; i < 3; i++) {
     const sheet = mesh(roundedGeometry(3.55, 4.2, .11, .12), i === 2 ? lightGreen : white, cover, [.13 * i, -.1 * i, -.16 * i]);
     sheet.rotation.z = -.09 + i * .04;
+    coverSheets.push(sheet);
   }
   const mark = new THREE.Group(); cover.add(mark); mark.position.z = .3;
   mesh(roundedGeometry(.46, 2.45, .31, .035), green, mark, [-.77, .15, 0]);
@@ -162,7 +181,7 @@ async function initScene(renderer) {
       p=vec3(p.x*c+p.z*s,p.y,p.z*c-p.x*s);p=vec3(p.x,p.y*cos(.22)-p.z*sin(.22),p.y*sin(.22)+p.z*cos(.22));
       vDepth=.4+(p.z+1.)*.3;
       float t=ease(clamp((uElapsed-aDelay)/.72,0.,1.));vec3 center=mix(uFrom,uTo,t*uFlying);
-      p*=uRadius; p.xy*=1.+position.z*.08;
+      p*=uRadius*(1.+sin(uTime*.63+position.y*2.)*.022); p.xy*=1.+position.z*.08;
       if(uFlying>.5)p.y+=sin(t*3.14159265)*position.z*.22;
       if(uRecycle>.5){float age=uElapsed-aDelay;
         if(age<.45){float q=ease(clamp(age/.34,0.,1.));center=mix(uFrom,vec3(3.8,uFrom.y,.4),q);p*=1.-q;}
@@ -232,6 +251,7 @@ async function initScene(renderer) {
 
   // The archive is seven physical sheets, selected from either the scene or the reading list.
   const archive = new THREE.Group(); groups[2].add(archive); archive.rotation.set(-.12, -.16, -.045);
+  archive.name = 'archive';
   const projectCards = data.projects.map((project, index) => {
     const card = new THREE.Group(); archive.add(card);
     const sheet = mesh(roundedGeometry(3.5, 4.65, .07, .055), index === 0 ? white : lightGreen, card); sheet.userData.projectIndex = index;
@@ -254,18 +274,20 @@ async function initScene(renderer) {
 
   // Four milestones form a vertical path; real company names stay in the reading column.
   const career = new THREE.Group(); groups[3].add(career); career.rotation.set(0, -.14, -.035);
+  career.name = 'career';
   stroke([[0, -3, -.35], [0, 3, -.35]], career);
   const careerMarkers = data.experience.map((job, index) => {
     const y = 2.2 - index * 1.5, group = new THREE.Group(); group.userData.careerIndex = index; group.position.set(index % 2 ? .7 : -.7, y, 0); career.add(group);
     const sheet = mesh(roundedGeometry(2.35, .95, .1, .08), index === 0 ? green : white, group);
     writing(group, 2.15, .72, (p, w, h) => { p.fillStyle = index === 0 ? '#f8f7ed' : '#3f6554'; p.font = '140px Archivo'; p.fillText(job.period.slice(0, 4), 65, h * .5); p.font = '36px Archivo'; p.fillText(job.role, 65, h * .83); }, [0, 0, .085]);
     stroke([[group.position.x > 0 ? -1.15 : 1.15, 0, -.1], [-group.position.x, 0, -.3]], group);
-    mesh(new THREE.SphereGeometry(.085, 12, 8), index === 0 ? gold : lightGreen, career, [0, y, -.25]);
-    return { group, sheet };
+    const marker = mesh(new THREE.SphereGeometry(.085, 12, 8), index === 0 ? gold : lightGreen, career, [0, y, -.25]);
+    return { group, sheet, marker, homeX: group.position.x, homeY: y };
   });
 
   // Both boards use the same task durations; only their start times differ.
   const query = new THREE.Group(); groups[4].add(query);
+  query.name = 'query';
   const queryPaths = [], queryBoards = [], queryCycle = 6.2;
   const queryNames = ['用户资料', '订单列表', '账户信息'];
   function queryText(text, color = '#496758') {
@@ -287,22 +309,24 @@ async function initScene(renderer) {
       const fillMaterial = new THREE.MeshBasicMaterial({ color: '#b79362' }); resources.add(fillMaterial);
       const fill = mesh(new THREE.PlaneGeometry(2.03, .10), fillMaterial, board, [.02, y, .13]);
       const head = mesh(new THREE.SphereGeometry(.075, 12, 8), gold, board, [-.99, y, .16]);
+      const signal = mesh(new THREE.SphereGeometry(.05, 10, 8), green, board); signal.visible = false;
       const statusMaterial = new THREE.MeshBasicMaterial({ map: statusMaps[0], transparent: true, depthWrite: false }); resources.add(statusMaterial);
       const status = mesh(new THREE.PlaneGeometry(1.12, .28), statusMaterial, board, [1.84, y, .10]);
-      const row = { fill, head, status, y, duration: [1.24, 1.52, 1.24][index], start: mode ? 0 : [0, 1.24, 2.76][index], progress: 0, state: 0 };
+      const row = { fill, head, signal, status, y, duration: [1.24, 1.52, 1.24][index], start: mode ? 0 : [0, 1.24, 2.76][index], progress: 0, state: 0 };
       queryPaths.push(row); return row;
     });
     const resultMaterial = new THREE.MeshBasicMaterial({ map: resultMaps[0], transparent: true, depthWrite: false }); resources.add(resultMaterial);
     const result = mesh(new THREE.PlaneGeometry(1.65, .41), resultMaterial, board, [1.61, -1.04, .1]);
     writing(board, 2.9, .30, (p, w, h) => { p.fillStyle = '#81907f'; p.font = '75px Archivo, sans-serif'; p.textBaseline = 'middle'; p.fillText(mode ? '三项任务一起开始' : '三项任务依次开始', 10, h / 2); }, [-.97, -1.04, .1]);
-    queryBoards.push({ rows, result, done: false });
+    queryBoards.push({ board, rows, result, done: false });
   });
 
   // The closing scene is a letter, rather than another unrelated decorative object.
   const letter = new THREE.Group(); groups[5].add(letter); letter.rotation.set(-.14, -.27, -.12);
+  letter.name = 'letter';
   mesh(roundedGeometry(3.75, 2.55, .13, .055), white, letter);
-  const fold = new THREE.Shape(); fold.moveTo(-1.83, 1.2); fold.lineTo(0, -.13); fold.lineTo(1.83, 1.2); fold.closePath();
-  mesh(new THREE.ShapeGeometry(fold), new THREE.MeshStandardMaterial({ color: '#c4d1bc', side: THREE.DoubleSide, roughness: .8 }), letter, [0, 0, .09]);
+  const fold = new THREE.Shape(); fold.moveTo(-1.83, 0); fold.lineTo(0, -1.33); fold.lineTo(1.83, 0); fold.closePath();
+  const letterFlap = mesh(new THREE.ShapeGeometry(fold), new THREE.MeshStandardMaterial({ color: '#c4d1bc', side: THREE.DoubleSide, roughness: .8 }), letter, [0, 1.2, .09]);
   stroke([[-1.85, -1.2, .095], [-.4, -.12, .11], [0, -.34, .12], [.4, -.12, .11], [1.85, -1.2, .095]], letter);
   const seal = mesh(new THREE.CylinderGeometry(.3, .3, .08, 32), green, letter, [0, -.22, .17]); seal.rotation.x = Math.PI / 2;
   writing(letter, 1.1, .4, (p, w, h) => { p.fillStyle = '#e5efde'; p.font = '180px Archivo'; p.textAlign = 'center'; p.fillText('H.', w / 2, h * .74); }, [0, -.22, .23]);
@@ -350,7 +374,8 @@ async function initScene(renderer) {
       const u = item.material.uniforms; u.uTime.value = clock + index * 2;
       if (!skillTransfer || skillTransfer.index !== index) {
         if (index !== selectedSkill || item.center.distanceTo(item.home) < .01) {
-          item.resting.copy(item.home); item.resting.y += Math.sin(clock * .4 + index) * .07;
+          item.resting.copy(item.home);
+          item.resting.x += drift(index * 1.9, .075); item.resting.y += drift(index * 2.7 + 1, .13);
           const focus = skillObjects[selectedSkill];
           if (index !== selectedSkill && focus.center.distanceTo(focus.home) > .15) {
             const dx = item.resting.x - focus.center.x, dy = item.resting.y - focus.center.y, distance = Math.hypot(dx, dy) || .01;
@@ -378,10 +403,84 @@ async function initScene(renderer) {
       if (card.parent !== archive) return;
       const inFilter = projectIndices.includes(index); card.visible = inFilter;
       const rank = projectIndices.indexOf(index), chosen = projectIndices.indexOf(selectedProject), relative = (rank - chosen + projectIndices.length) % projectIndices.length;
-      const target = index === selectedProject ? new THREE.Vector3(-.2, .08, .6) : new THREE.Vector3(.25 + relative * .15, relative * .1, -.13 * relative);
-      card.position.lerp(target, (reduced.matches ? 1 : 1 - Math.exp(-dt * 9)));
-      card.rotation.z = THREE.MathUtils.lerp(card.rotation.z, index === selectedProject ? -.055 : .025 + relative * .038, (reduced.matches ? 1 : 1 - Math.exp(-dt * 9)));
+      const chosenCard = index === selectedProject, fanned = hovered.project >= 0 ? 1 : 0;
+      springTo(card.position, 'x', chosenCard ? -.2 : .25 + relative * (.15 + fanned * .018), dt);
+      springTo(card.position, 'y', (chosenCard ? .08 : relative * .1) + drift(index * 1.8, .045), dt);
+      springTo(card.position, 'z', chosenCard ? .6 + (hovered.project === index ? .18 : 0) : -.13 * relative, dt);
+      springTo(card.rotation, 'z', (chosenCard ? -.055 : .025 + relative * (.038 + fanned * .002)) + drift(index + 2, .012), dt);
+      springTo(card.rotation, 'y', chosenCard ? pointer.x * .035 : drift(index, .015), dt);
     });
+  }
+  function updateSceneHover() {
+    if (!hoverDirty || modal) return;
+    hoverDirty = false;
+    const previous = JSON.stringify(hovered);
+    hovered.project = hovered.career = -1; hovered.query = hovered.letter = hovered.cover = false;
+    if (pointerInside) {
+      scene.updateMatrixWorld(true); raycaster.setFromCamera(pointerTarget, camera);
+      if (chapter === 0) hovered.cover = raycaster.intersectObject(cover, true).length > 0;
+      if (chapter === 2) { const hit = raycaster.intersectObjects(projectCards.filter((_, i) => projectIndices.includes(i)).flatMap(p => [p.sheet, p.face]))[0]; if (hit) hovered.project = hit.object.userData.projectIndex; }
+      if (chapter === 3) {
+        const hit = raycaster.intersectObjects(careerMarkers.map(item => item.sheet))[0];
+        if (hit) hovered.career = hit.object.parent.userData.careerIndex;
+      }
+      if (chapter === 4) hovered.query = raycaster.intersectObject(query, true).length > 0;
+      if (chapter === 5) hovered.letter = raycaster.intersectObject(letter, true).length > 0;
+    }
+    const clickable = hovered.project >= 0 || hovered.career >= 0 || hovered.query || hovered.letter;
+    document.body.classList.toggle('scene-hoverable', clickable);
+    if (previous !== JSON.stringify(hovered)) interactionFrames = Math.max(interactionFrames, 45);
+  }
+  function updateSceneMotion(dt) {
+    if (modal) return;
+    const amplitude = mobile ? .55 : 1;
+    springTo(main.rotation, 'x', reduced.matches ? 0 : pointer.y * .045 * amplitude, dt, 7);
+    springTo(main.rotation, 'y', reduced.matches ? 0 : pointer.x * .08 * amplitude, dt, 7);
+    if (chapter === 0) {
+      cover.position.set(drift(.3, .075), drift(1.4, .15), 0);
+      springTo(cover.rotation, 'x', -.12 + drift(2, .03) + pointer.y * .035, dt, 6);
+      springTo(cover.rotation, 'y', -.38 + drift(.7, .095) + scrollProgress * .22 + pointer.x * .055, dt, 6);
+      coverSheets.forEach((sheet, i) => {
+        springTo(sheet.position, 'x', .13 * i + (hovered.cover ? i * .055 : 0), dt, 8);
+        springTo(sheet.position, 'z', -.16 * i + drift(i + 1, .025), dt, 8);
+        springTo(sheet.rotation, 'z', -.09 + i * .04 + drift(i * 1.6, .022), dt, 8);
+      });
+      springTo(mark.position, 'z', .3 + (hovered.cover ? .13 : 0) + drift(2, .025), dt, 8);
+      coverRing.rotation.z = reduced.matches ? 0 : clock * .035;
+      orbit.position.set(Math.cos(clock * .3) * 3.1, -.4 + Math.sin(clock * .3) * 1.05, Math.sin(clock * .3) * 2.8);
+    }
+    if (chapter === 2) {
+      archive.position.y = drift(1, .085);
+      springTo(archive.position, 'x', hovered.project >= 0 ? -.08 : 0, dt, 8);
+      springTo(archive.rotation, 'x', -.12 + pointer.y * .045 + drift(.8, .018), dt, 7);
+      springTo(archive.rotation, 'y', -.16 + pointer.x * .055, dt, 7);
+    }
+    if (chapter === 3) careerMarkers.forEach(({ group, marker, homeX, homeY }, index) => {
+      const selected = index === selectedCareer, over = hovered.career === index;
+      springTo(group.position, 'x', homeX + drift(index * 2, .035), dt, 8);
+      springTo(group.position, 'y', homeY + drift(index * 2 + 1, .05), dt, 8);
+      springTo(group.position, 'z', (selected ? .4 : 0) + (over ? .18 : 0), dt);
+      springTo(group.rotation, 'y', selected || over ? .10 + pointer.x * .03 : drift(index, .025), dt);
+      springTo(group.rotation, 'z', drift(index * 1.9, .02), dt, 8);
+      springTo(marker.scale, 'x', selected ? 1.35 + drift(index, .10) : 1, dt); marker.scale.y = marker.scale.z = marker.scale.x;
+    });
+    if (chapter === 4) queryBoards.forEach(({ board, done, result }, index) => {
+      springTo(board.position, 'x', drift(index * 2, .025), dt, 7);
+      springTo(board.position, 'z', done ? .12 : 0, dt, 8);
+      springTo(board.rotation, 'y', pointer.x * .035 * (index ? 1 : -.7), dt, 7);
+      springTo(board.rotation, 'z', drift(index * 2, .006), dt, 7);
+      springTo(result.position, 'z', done ? .17 : .10, dt, 12);
+      springTo(result.scale, 'x', done ? 1.035 : 1, dt, 12, .72); result.scale.y = result.scale.x;
+    });
+    if (chapter === 5) {
+      letter.position.y = drift(.8, .10) - .2;
+      springTo(letter.rotation, 'y', -.27 + pointer.x * .085 + drift(1, .025), dt, 7);
+      springTo(letter.rotation, 'z', -.08 + drift(2, .025), dt, 7);
+      const opening = reduced.matches ? 1 : ease(clamp(chapterAge / .9));
+      springTo(letterFlap.rotation, 'x', (hovered.letter ? 2.65 : 2.12) * opening, dt, 9);
+      springTo(letterPaper.position, 'y', .35 + opening * (.55 + (hovered.letter ? .28 : 0)) + drift(3, .025), dt, 9);
+      springTo(letterPaper.rotation, 'z', .02 + (hovered.letter ? -.045 : 0), dt, 8);
+    }
   }
   function expandProjectViewport() {
     const p = projectPresentation, r = scene.userData.region;
@@ -456,6 +555,11 @@ async function initScene(renderer) {
         row.fill.position.x = -.995 + 2.03 * progress / 2;
         row.fill.material.color.set(state === 2 ? '#277967' : '#b79362');
         row.head.visible = state === 1; row.head.position.x = -.995 + 2.03 * progress;
+        row.head.scale.setScalar(reduced.matches ? 1 : 1 + Math.sin(elapsed * 8) * .10);
+        const arrival = elapsed - row.duration, travel = clamp(arrival / .52), flight = ease(travel);
+        row.signal.visible = !reduced.matches && arrival >= 0 && arrival < .52;
+        row.signal.position.set(1.035 + .575 * flight + Math.sin(travel * Math.PI) * .22, row.y + (-1.04 - row.y) * flight, .18 + Math.sin(travel * Math.PI) * .22);
+        row.signal.scale.setScalar(1 - travel * .4);
         row.status.material.map = statusMaps[state];
       });
       board.done = board.rows.every(row => row.state === 2);
@@ -483,14 +587,12 @@ async function initScene(renderer) {
       }
     });
     if (!modal) pointer.lerp(pointerTarget, 1 - Math.exp(-dt * 4));
-    main.rotation.x = reduced.matches ? 0 : pointer.y * .035;
-    main.rotation.y = reduced.matches ? 0 : pointer.x * .07;
-    if (chapter === 0) { cover.position.y = Math.sin(clock * .6) * .085; cover.rotation.y = -.38 + Math.sin(clock * .2) * .08 + scrollProgress * .22; orbit.position.set(Math.cos(clock * .3) * 3.1, -.4 + Math.sin(clock * .3) * 1.05, Math.sin(clock * .3) * 2.8); }
+    if (!modal) chapterAge += dt;
+    updateSceneHover();
     if (chapter === 1 || skillTransfer) updateSkills(dt);
-    if (chapter === 2) updateArchive(dt);
-    if (chapter === 3) careerMarkers.forEach(({ group }, i) => { group.position.z = THREE.MathUtils.lerp(group.position.z, i === selectedCareer ? .4 : 0, 1 - Math.exp(-dt * 7)); });
+    if (chapter === 2 && !modal) updateArchive(dt);
     if (chapter === 4) updateQuery();
-    if (chapter === 5) { letter.position.y = Math.sin(clock * .5) * .07; letterPaper.position.y = .9 + Math.sin(clock * .35) * .12; }
+    updateSceneMotion(dt);
     if (projectPresentation) updateProjectPresentation(dt);
     updateLabels();
     if (transition < 1) { drawScene(liveTarget); drawBlend(null, t); }
@@ -514,6 +616,8 @@ async function initScene(renderer) {
     if (!preparing && !lost && !reduced.matches) captureDisplay();
     labelOpacityFrom = labelOpacity;
     previousChapter = chapter; chapter = index; transition = reduced.matches ? 1 : 0;
+    chapterAge = 0; hoverDirty = true; interactionFrames = Math.max(interactionFrames, 90);
+    if (chapter === 5 && !reduced.matches) { letterFlap.rotation.x = 0; letterPaper.position.y = .35; springVelocities.delete(letterFlap.rotation); springVelocities.delete(letterPaper.position); }
     lastBlend = reduced.matches ? 1 : 0;
     if (chapter === 4) queryStarted = clock;
     if (previousChapter === 1 && skillTransfer) finishSkill();
@@ -532,7 +636,14 @@ async function initScene(renderer) {
   document.addEventListener('spatial-pause', e => { paused = e.detail; requestFrame(); });
   document.addEventListener('spatial-modal', e => { modal = e.detail; if (modal) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; } else { restoreProjectPresentation(false); requestFrame(); } });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; } else requestFrame(); });
-  document.addEventListener('pointermove', e => { const r = scene.userData.region; pointerTarget.set(clamp((e.clientX - r.x) / r.w) * 2 - 1, 1 - clamp((e.clientY - r.y) / r.h) * 2); if (!paused) requestFrame(); }, { passive: true });
+  document.addEventListener('pointermove', e => {
+    if (modal || e.pointerType === 'touch') return;
+    const r = scene.userData.region;
+    pointerInside = !e.target.closest('a,button,input,select,dialog') && e.clientX >= r.x && e.clientX <= r.x + r.w && e.clientY >= r.y && e.clientY <= r.y + r.h;
+    pointerTarget.set(pointerInside ? (e.clientX - r.x) / r.w * 2 - 1 : 0, pointerInside ? 1 - (e.clientY - r.y) / r.h * 2 : 0);
+    hoverDirty = true; interactionFrames = Math.max(interactionFrames, 45); requestFrame();
+  }, { passive: true });
+  document.addEventListener('pointerleave', () => { pointerInside = false; pointerTarget.set(0, 0); hoverDirty = true; interactionFrames = Math.max(interactionFrames, 45); requestFrame(); });
   document.addEventListener('click', e => {
     if (modal || e.target.closest('a,button,input,select,dialog')) return;
     const r = scene.userData.region;
@@ -561,7 +672,7 @@ async function initScene(renderer) {
   });
   window.addEventListener('pageshow', () => requestFrame());
   // Expose renderer statistics for local verification, without adding implementation details to the page.
-  window.HYTEX_SCENE = { renderer, scene, camera, groups, skillObjects, projectCards, queryPaths, get queryTime() { return { clock, queryStarted, modal, frame }; }, get presentation() { return projectPresentation; }, get chapter() { return chapter; }, get transfer() { return skillTransfer; }, get fade() { return { progress: transition, mix: lastBlend, labelOpacity }; } };
+  window.HYTEX_SCENE = { renderer, scene, camera, groups, skillObjects, projectCards, queryPaths, get motion() { return { ...hovered, chapterAge }; }, get queryTime() { return { clock, queryStarted, modal, frame }; }, get presentation() { return projectPresentation; }, get chapter() { return chapter; }, get transfer() { return skillTransfer; }, get fade() { return { progress: transition, mix: lastBlend, labelOpacity }; } };
   // Upload every chapter's textures and compile the offscreen materials before
   // enabling navigation-driven fades; the first switch uses complete imagery.
   resources.forEach(resource => { if (resource.isTexture) renderer.initTexture(resource); });
