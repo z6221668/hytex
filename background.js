@@ -11,6 +11,7 @@
   const canvas = document.querySelector('#particles');
   const ctx = canvas.getContext('2d');
   const TRAVEL_SECONDS = 1.2, DEPART_SPAN = 1.7, INTAKE_SECONDS = .55, EMIT_START = .69, EMIT_SECONDS = .55;
+  const GATHER_DEPART_SECONDS = .24, GATHER_FLIGHT_SECONDS = .72;
   const PORTAL_SECONDS = DEPART_SPAN + EMIT_START + EMIT_SECONDS + .32, DISPLAY_SECONDS = 10, CHARACTERS_PER_SECOND = 28;
   const random = (min, max) => min + Math.random() * (max - min);
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -149,6 +150,7 @@
     active = null; hideNote(); select.value = ''; nextVisit = clock + random(4, 7);
   }
   function showDescription(instant = false) {
+    note.hidden = false;
     active.phase = 'describe'; active.started = clock;
     active.characters = Array.from(active.ball.skill.description);
     active.typingDuration = instant ? 0 : active.characters.length / CHARACTERS_PER_SECOND;
@@ -156,8 +158,8 @@
     note.classList.toggle('typing', !instant); note.classList.add('visible'); active.ball.node.tabIndex = 0;
     if (active.recycleRequested) recycle();
   }
-  function visit(index) {
-    if (active?.phase === 'portal') return;
+  function visit(index, gather = false) {
+    if (active?.portal) return;
     release();
     const ball = balls[index];
     if (!ball || ball.dismissed) return;
@@ -169,13 +171,14 @@
     foreground.append(ball.node); ball.node.classList.add('visiting'); previousIndex = ball.index;
     ball.node.setAttribute('aria-label', `回收 ${ball.skill.name} 技术球并关闭说明`);
     active = { ball, origin, destination: dockPosition(ball), started: clock, phase: 'approach' };
-    if (paused || preference.matches) { Object.assign(ball, active.destination); place(ball); showDescription(true); }
+    if (gather && !preference.matches) beginPortal(true);
+    else if (paused || preference.matches) { Object.assign(ball, active.destination); place(ball); showDescription(true); }
   }
   function selectBall(ball) {
-    if (ball.dismissed || modalOpen || active?.phase === 'portal') return;
-    visit(ball.index); select.value = String(ball.index);
+    if (ball.dismissed || modalOpen || active?.portal) return;
+    visit(ball.index, true); if (!active?.portal) select.value = String(ball.index);
   }
-  function beginPortal() {
+  function beginPortal(gather = false) {
     const ball = active.ball, surface = document.createElement('canvas');
     hideNote(); ball.node.tabIndex = -1; select.value = ''; select.disabled = true;
     if (document.activeElement === ball.node) select.focus({ preventScroll: true });
@@ -191,16 +194,16 @@
       const z = point.z * Math.cos(turn) - point.x * Math.sin(turn);
       const y = point.y * Math.cos(.22) - z * Math.sin(.22);
       const projected = { x: x * .84 * (1 + z * .12), y: y * .84 * (1 + z * .12), z,
-        delay: i / (count - 1) * DEPART_SPAN, renderX: 0, renderY: 0, visible: false,
+        delay: i / (count - 1) * (gather ? GATHER_DEPART_SECONDS : DEPART_SPAN), renderX: 0, renderY: 0, visible: false,
         moving: false, tailX: 0, tailY: 0, hasTail: false };
       buckets[Math.min(2, Math.floor((z + 1) * 1.5))].push(projected);
       return projected;
     });
-    active.phase = 'portal'; active.started = clock;
-    active.portal = { surface, paint: surface.getContext('2d'), points, buckets, bounds: null,
+    active.phase = gather ? 'gather' : 'portal'; active.started = clock;
+    active.portal = { gather, duration: gather ? TRAVEL_SECONDS : PORTAL_SECONDS, surface, paint: surface.getContext('2d'), points, buckets, bounds: null,
       colors: [.24, .36, .48].map(alpha => `rgba(${palette[ball.skill.color].join(',')},${alpha})`),
       movingColors: [.6, .74, .88].map(alpha => `rgba(${palette[ball.skill.color].join(',')},${alpha})`),
-      source: { x: ball.x, y: ball.y }, target: findReformSpot(ball), blending: false };
+      source: { x: ball.x, y: ball.y }, target: gather ? { ...active.destination } : findReformSpot(ball), blending: false };
     resizePortal(); paintPortal(); start();
   }
   function resizePortal() {
@@ -208,7 +211,7 @@
     const { surface } = active.portal;
     // Tiny moving dots need no high-DPI full-screen buffer.
     surface.width = Math.round(width); surface.height = Math.round(height); active.portal.bounds = null;
-    active.portal.restingOpacity = Number(getComputedStyle(root).getPropertyValue('--orb-idle-opacity')) || .55;
+    active.portal.restingOpacity = active.portal.gather ? .85 : Number(getComputedStyle(root).getPropertyValue('--orb-idle-opacity')) || .55;
     const target = active.portal.target, radius = active.ball.radius;
     target.x = clamp(target.x, radius + 12, width - radius - 12);
     target.y = clamp(target.y, radius + 12, height - radius - 12);
@@ -232,7 +235,15 @@
       let x, y;
       const age = elapsed - point.delay;
       point.moving = (age >= 0 && age < INTAKE_SECONDS) || (age >= EMIT_START && age < EMIT_START + EMIT_SECONDS);
-      if (age < EMIT_START) {
+      if (portal.gather) {
+        const t = travelEase(clamp(age / GATHER_FLIGHT_SECONDS, 0, 1));
+        const startX = origin.x + point.x * ball.radius, startY = origin.y + point.y * ball.radius;
+        const distance = Math.hypot(target.x - origin.x, target.y - origin.y) || 1;
+        const bend = Math.sin(Math.PI * t) * point.z * Math.min(42, distance * .08);
+        x = startX + (endX - startX) * t - (target.y - origin.y) / distance * bend;
+        y = startY + (endY - startY) * t + (target.x - origin.x) / distance * bend;
+        point.moving = age > 0 && age < GATHER_FLIGHT_SECONDS;
+      } else if (age < EMIT_START) {
         const startX = origin.x + point.x * ball.radius;
         const startY = origin.y + point.y * ball.radius;
         const t = ease(clamp(age / INTAKE_SECONDS, 0, 1));
@@ -256,13 +267,14 @@
       bounds.left = Math.min(bounds.left, x); bounds.top = Math.min(bounds.top, y);
       bounds.right = Math.max(bounds.right, x); bounds.bottom = Math.max(bounds.bottom, y);
     });
-    const emitting = elapsed >= EMIT_START && elapsed <= DEPART_SPAN + EMIT_START + EMIT_SECONDS;
+    const emitting = !portal.gather && elapsed >= EMIT_START && elapsed <= DEPART_SPAN + EMIT_START + EMIT_SECONDS;
     if (emitting) {
       bounds.left = Math.min(bounds.left, target.x - 3); bounds.top = Math.min(bounds.top, target.y - 3);
       bounds.right = Math.max(bounds.right, target.x + 3); bounds.bottom = Math.max(bounds.bottom, target.y + 3);
     }
     portal.bounds = bounds.right >= bounds.left ? bounds : null;
-    const blend = clamp((elapsed - (PORTAL_SECONDS - .32)) / .32, 0, 1);
+    const blendSeconds = portal.gather ? .24 : .32;
+    const blend = clamp((elapsed - (portal.duration - blendSeconds)) / blendSeconds, 0, 1);
     // Fade the sparse transfer into the normal cloud instead of switching density in one frame.
     if (blend > 0) {
       if (!portal.blending) {
@@ -384,7 +396,8 @@
       active.origin.y = clamp(active.origin.y, active.ball.radius, height - active.ball.radius);
       if (active.phase !== 'return') {
         active.destination = dockPosition(active.ball);
-        if (active.phase !== 'portal') { Object.assign(active.ball, active.destination); place(active.ball); }
+        if (!active.portal) { Object.assign(active.ball, active.destination); place(active.ball); }
+        else if (active.portal.gather) active.portal.target = { ...active.destination };
         if (active.phase === 'approach') showDescription(paused || preference.matches);
       }
     }
@@ -410,7 +423,7 @@
   }
   function tick(time) {
     frame = 0;
-    if ((paused && active?.phase !== 'portal') || modalOpen || document.hidden) return;
+    if ((paused && !active?.portal) || modalOpen || document.hidden) return;
     const dt = lastTime === null ? 0 : Math.min((time - lastTime) / 1000, .05);
     lastTime = time; clock += dt;
     if (!paused) balls.forEach(ball => {
@@ -442,10 +455,13 @@
     }
     if (active) {
       const elapsed = clock - active.started;
-      if (active.phase === 'portal') {
-        if (elapsed >= PORTAL_SECONDS) {
-          finishRecycle();
-        } else if (elapsed > EMIT_START) {
+      if (active.portal) {
+        if (elapsed >= active.portal.duration) {
+          if (active.portal.gather) {
+            Object.assign(active.ball, active.destination); clearPortal(); place(active.ball);
+            select.value = String(active.ball.index); showDescription(paused);
+          } else finishRecycle();
+        } else if (!active.portal.gather && elapsed > EMIT_START) {
           repelAtOutlet(active.ball, active.ball.radius * clamp((elapsed - EMIT_START) / (DEPART_SPAN + EMIT_SECONDS), 0, 1));
         }
       } else if (active.phase === 'approach' || active.phase === 'return') {
@@ -468,23 +484,23 @@
       const overlaps = active && active.ball !== ball && Math.hypot(ball.x - active.ball.x, ball.y - active.ball.y) < ball.radius + active.ball.radius + 12;
       ball.node.classList.toggle('occluded', Boolean(overlaps));
       updateExposure(ball);
-      if (!paused && !(active?.ball === ball && active.phase === 'portal')) paintCloud(ball);
+      if (!paused && !(active?.ball === ball && active.portal)) paintCloud(ball);
     });
-    if (active?.phase === 'portal') paintPortal();
-    if (!paused || active?.phase === 'portal') frame = requestAnimationFrame(tick);
+    if (active?.portal) paintPortal();
+    if (!paused || active?.portal) frame = requestAnimationFrame(tick);
   }
-  function start() { if ((!paused || active?.phase === 'portal') && !modalOpen && !document.hidden && !frame) { lastTime = null; frame = requestAnimationFrame(tick); } }
+  function start() { if ((!paused || active?.portal) && !modalOpen && !document.hidden && !frame) { lastTime = null; frame = requestAnimationFrame(tick); } }
   function setPaused(value) {
     paused = value; toggle.setAttribute('aria-pressed', String(value)); toggle.textContent = value ? '播放背景 ▷' : '暂停背景 Ⅱ';
     if (value) {
       cancelAnimationFrame(frame); frame = 0;
-      if (active?.phase === 'portal') start();
+      if (active?.portal) start();
       else if (active?.phase === 'approach') { Object.assign(active.ball, active.destination); place(active.ball); showDescription(true); }
       else if (active?.phase === 'describe') { text.textContent = active.ball.skill.description; note.classList.remove('typing'); active.typingDuration = 0; active.started = clock; }
     } else start();
   }
   select.addEventListener('change', () => {
-    if (active?.phase === 'portal') { select.value = ''; return; }
+    if (active?.portal) { select.value = ''; return; }
     if (select.value !== '') visit(Number(select.value)); else { release(); nextVisit = clock + 1; }
   });
   // Content sits above the background. Resolve clicks by coordinates without covering links or controls.
