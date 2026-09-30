@@ -42,9 +42,9 @@ git push -u origin main
 
 ## 当前仓库
 
-源码仓库：[z6221668/hytex.github.io](https://github.com/z6221668/hytex.github.io)。
+源码仓库：[z6221668/hytex](https://github.com/z6221668/hytex)。
 
-此仓库名称与账号名不同，属于项目站点。推送后，在仓库 **Settings → Pages** 选择 **Deploy from a branch → main → / (root)**。发布完成后以 Pages 设置页显示的地址为准；默认项目地址为 `https://z6221668.github.io/hytex.github.io/`。Git 推送完成不代表 Pages 已启用或发布成功。
+此仓库名称与账号名不同，属于项目站点。推送后，在仓库 **Settings → Pages** 选择 **Deploy from a branch → main → / (root)**。发布完成后以 Pages 设置页显示的地址为准；默认项目地址为 `https://z6221668.github.io/hytex/`。Git 推送完成不代表 Pages 已启用或发布成功。
 
 ## 修改内容
 

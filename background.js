@@ -10,11 +10,13 @@
   const preference = matchMedia('(prefers-reduced-motion: reduce)');
   const canvas = document.querySelector('#particles');
   const ctx = canvas.getContext('2d');
-  const TRAVEL_SECONDS = 2.2, DEPART_SPAN = 1.7, INTAKE_SECONDS = .55, EMIT_START = .69, EMIT_SECONDS = .55;
+  const TRAVEL_SECONDS = 1.2, DEPART_SPAN = 1.7, INTAKE_SECONDS = .55, EMIT_START = .69, EMIT_SECONDS = .55;
   const PORTAL_SECONDS = DEPART_SPAN + EMIT_START + EMIT_SECONDS + .32, DISPLAY_SECONDS = 10, CHARACTERS_PER_SECOND = 28;
   const random = (min, max) => min + Math.random() * (max - min);
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
   const ease = v => v * v * (3 - 2 * v);
+  // Penner easeInOutCubic: accelerate from rest, fly through the middle, brake to rest.
+  const travelEase = v => v < .5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2;
   const palette = { lime: [135, 107, 60], green: [68, 117, 78], warm: [132, 112, 73], rose: [153, 104, 84], blue: [71, 116, 136], neutral: [99, 120, 98] };
   let width = innerWidth, height = innerHeight, frame = 0, lastTime = null;
   let clock = 0, nextVisit = 2.5, active = null, previousIndex = -1;
@@ -447,7 +449,7 @@
           repelAtOutlet(active.ball, active.ball.radius * clamp((elapsed - EMIT_START) / (DEPART_SPAN + EMIT_SECONDS), 0, 1));
         }
       } else if (active.phase === 'approach' || active.phase === 'return') {
-        const progress = Math.min(elapsed / TRAVEL_SECONDS, 1), factor = ease(active.phase === 'return' ? 1 - progress : progress);
+        const progress = Math.min(elapsed / TRAVEL_SECONDS, 1), factor = travelEase(active.phase === 'return' ? 1 - progress : progress);
         active.ball.x = active.origin.x + (active.destination.x - active.origin.x) * factor;
         active.ball.y = active.origin.y + (active.destination.y - active.origin.y) * factor;
         if (progress === 1) { if (active.phase === 'approach') showDescription(); else release(); }
