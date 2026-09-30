@@ -3,72 +3,99 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f8f9f6">
+  <meta name="theme-color" content="#faf8f2">
   <meta name="description" content="HYTEX 的开发经历：Java 后端、Spring 微服务、金融业务与 AI 应用。">
-  <title>HYTEX · Java 后端开发</title>
+  <title>HYTEX · 开发档案</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./background.css?v=recycle-4">
-  <link rel="stylesheet" href="./query-demo.css">
-  <link rel="stylesheet" href="./editorial.css?v=type-color-10">
+  <link rel="stylesheet" href="./spatial.css?v=2">
   <script src="./resume-data.js" defer></script>
-  <script src="./background.js?v=gather-typing-11" defer></script>
-  <script src="./app.js" defer></script>
-  <script src="./query-demo.js" defer></script>
+  <script src="./spatial-app.js?v=2" defer></script>
+  <script src="./spatial-scene.js?v=2" type="module"></script>
 </head>
 <body>
-  <div class="page-background" id="orb-stage" aria-hidden="true"><canvas id="particles"></canvas><div id="skill-orbs"></div></div>
-  <div id="dock-ball-host"></div>
-  <aside class="tech-note" id="tech-note" aria-label="技术说明" hidden><span id="skill-kind"></span><h3 id="skill-title"></h3><p class="typed-description"><span id="typing-measure" aria-hidden="true"></span><span id="skill-description"></span></p><small class="dismiss-hint">点击小球回收</small></aside>
   <a class="skip-link" href="#main">跳至正文</a>
+  <div class="scene-stage" aria-hidden="true"><canvas id="resume-scene"></canvas></div>
+  <div class="scene-labels" id="scene-labels" aria-label="场景中的技术"></div>
+  <div class="scene-caption" id="scene-caption" aria-hidden="true"><span id="scene-caption-kicker">BACKEND / AI / PRODUCT</span><p id="scene-caption-title">Java 后端 · AI 应用 · 跨端开发</p></div>
   <header class="header">
-    <a class="brand" href="#" aria-label="返回首页"><span class="brand-mark">H<span>.</span></span><span class="brand-label">HYTEX</span></a>
-    <nav aria-label="主导航"><a href="#skills">技术栈</a><a href="#projects">项目经历</a><a href="#experience">工作经历</a><a class="nav-contact" href="#contact">联系方式 <span>↗</span></a></nav>
+    <a class="brand" href="#intro" aria-label="HYTEX 首页">H<span>.</span><small>HYTEX</small></a>
+    <nav aria-label="主导航"><a href="#skills">技术</a><a href="#projects">项目</a><a href="#experience">经历</a><a href="#contact">联系 <span>↗</span></a></nav>
+    <button class="motion-control" id="motion-toggle" aria-pressed="false" aria-label="暂停场景动画"><span class="motion-symbol">Ⅱ</span><span class="motion-word">暂停动画</span></button>
   </header>
+  <aside class="chapter-rail" aria-label="章节导航">
+    <a href="#intro" class="active" aria-label="首页"><span>00</span><i></i></a>
+    <a href="#skills" aria-label="技术栈"><span>01</span><i></i></a>
+    <a href="#projects" aria-label="项目经历"><span>02</span><i></i></a>
+    <a href="#experience" aria-label="工作经历"><span>03</span><i></i></a>
+    <a href="#opensource" aria-label="开源项目"><span>04</span><i></i></a>
+    <a href="#contact" aria-label="联系方式"><span>05</span><i></i></a>
+  </aside>
   <main id="main">
-    <section class="hero wrap" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <div class="eyebrow"><span class="status-dot"></span> 个人简历</div>
-        <h1 id="hero-title"><span>HYTEX<span class="name-dot">.</span></span></h1>
-        <p class="hero-statement">Java 后端开发</p>
-        <p class="hero-description">2018 年起从事 Java 开发，主要参与数据中台、金融平台和移动端产品研发。熟悉 Spring 微服务，做过数据库性能优化、第三方系统对接和 AI 模型服务接入。</p>
-        <div class="hero-meta"><span>2018 年起从事研发</span><span>服务端 · 移动端 · 桌面端</span></div>
-        <div class="hero-actions"><a class="button primary" href="#projects">查看项目经历 <span>↗</span></a><a class="button secondary" href="#contact">邮箱联系 <span>↗</span></a></div>
-        <a class="github-link" href="https://github.com/z6221668/parallel_query" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.6-3.37-1.18-3.37-1.18-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.82c.85 0 1.7.11 2.5.34 1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.76c0 .26.18.58.69.48A10 10 0 0 0 12 2Z"/></svg> 开源项目 / parallel_query <span>↗</span></a>
-      </div>
-      <div class="background-controls"><label for="tech-select">技术说明</label><select id="tech-select"><option value="">随机展示</option></select><button id="motion-toggle" class="motion-toggle" aria-pressed="false">暂停背景 Ⅱ</button></div>
-    </section>
-    <section class="section wrap skills-section" id="skills" aria-labelledby="skills-title">
-      <div class="section-top"><div><div class="eyebrow section-kicker">01</div><h2 id="skills-title">技术栈</h2></div></div>
-      <div class="skill-groups">
-        <article class="skill-group"><h3>Java 服务开发</h3><p class="skill-tool-list">Java · Spring Boot · Spring Cloud Alibaba</p><p class="skill-practice">开发业务接口与微服务，处理跨服务调用、配置管理和并发任务。使用 MyBatis-Plus 完成数据访问。</p></article>
-        <article class="skill-group"><h3>AI 与内容处理</h3><p class="skill-tool-list">模型 API · OCR / ASR · Embedding</p><p class="skill-practice">接入文字识别、语音转写与文本生成，做过台本改写、视频解析和封面生成工作流。了解 Spring AI。</p></article>
-        <article class="skill-group"><h3>数据与缓存</h3><p class="skill-tool-list">MySQL · Oracle · Redis · Redisson</p><p class="skill-practice">优化 SQL、索引和热点缓存；使用 ShardingSphere 分表，结合分布式锁处理并发业务。</p></article>
-        <article class="skill-group"><h3>服务通信与任务</h3><p class="skill-tool-list">RabbitMQ · WebSocket · XXL-JOB</p><p class="skill-practice">将通知与非即时处理移出主流程，用消息队列分发任务，并对接实时通知和定时调度。</p></article>
-        <article class="skill-group"><h3>部署与监控</h3><p class="skill-tool-list">Linux · Nginx · Prometheus · Grafana</p><p class="skill-practice">维护服务运行环境，配置代理与负载均衡；通过指标、健康检查和日志排查线上问题。</p></article>
-        <article class="skill-group cross-platform"><h3>跨端开发与协作</h3><p class="skill-tool-list">Flutter · Electron</p><p class="skill-practice">有移动端与桌面端开发经验。在牛圈项目参与 Flutter 前端开发，配合后端接口完成页面与业务流程。</p></article>
+    <section class="chapter intro" id="intro" data-chapter="0" aria-labelledby="intro-title">
+      <div class="chapter-copy">
+        <p class="eyebrow"><span class="status-dot"></span> 开发档案 / 2018 —</p>
+        <h1 id="intro-title">HYTEX<span>.</span></h1>
+        <p class="intro-role">Java 后端开发</p>
+        <p class="intro-description">2018 年起从事 Java 开发，参与数据中台、金融平台和移动端产品研发。主要使用 Spring 微服务，做过模型服务接入、数据库优化和第三方系统对接。</p>
+        <div class="intro-footnotes"><span>Spring 微服务</span><span>AI 应用</span><span>跨端协作</span></div>
+        <div class="actions"><a class="button primary" href="#projects">浏览项目 <span>↗</span></a><a class="button text-button" href="mailto:68449317@qq.com">邮箱联系 <span>↗</span></a></div>
+        <a class="scroll-cue" href="#skills"><span class="scroll-line"></span>查看技术与项目 ↓</a>
       </div>
     </section>
-    <section class="section wrap" id="projects" aria-labelledby="projects-title">
-      <div class="section-top"><div><div class="eyebrow section-kicker">02</div><h2 id="projects-title">项目经历</h2></div></div>
-      <div class="project-toolbar"><div class="filters" role="group" aria-label="项目分类"><button class="active" data-filter="all" aria-pressed="true">全部项目</button><button data-filter="ai" aria-pressed="false">AI 应用</button><button data-filter="finance" aria-pressed="false">金融业务</button><button data-filter="product" aria-pressed="false">产品研发</button></div><span id="project-count" class="small-label" aria-live="polite">7 个项目</span></div>
-      <div class="project-grid" id="project-grid"></div>
-      <aside class="open-source query-demo" id="query-demo" aria-labelledby="query-title">
-        <div class="query-heading"><div><span class="small-label">个人开源项目</span><h3 id="query-title">parallel_query</h3><p>一个接口需要查几份数据时，让独立查询同时执行，最后汇总返回。</p></div><a class="button secondary" href="https://github.com/z6221668/parallel_query" target="_blank" rel="noopener noreferrer">查看 GitHub <span>↗</span></a></div>
-        <div class="query-flow" aria-label="调用流程"><span>聚合接口</span><b aria-hidden="true">→</b><span>独立只读查询</span><b aria-hidden="true">→</b><span>等待结果 · 汇总返回</span></div>
-        <div class="query-comparison" aria-describedby="query-explanation">
-          <section class="query-track" data-mode="serial" aria-labelledby="serial-title"><div class="query-track-heading"><h4 id="serial-title">逐个查询</h4><span>前一个结束，再开始下一个</span></div><div class="query-lanes"><div class="query-lane"><span>用户资料</span><div class="query-rail"><div class="query-task task-user" style="--start:0%;--duration:31%"><i></i><span>查询</span></div></div></div><div class="query-lane"><span>订单列表</span><div class="query-rail"><div class="query-task task-order" style="--start:31%;--duration:38%"><i></i><span>查询</span></div></div></div><div class="query-lane"><span>账户信息</span><div class="query-rail"><div class="query-task task-account" style="--start:69%;--duration:31%"><i></i><span>查询</span></div></div></div></div><div class="query-result"><span class="query-result-dot"></span><span class="query-result-label">汇总结果</span><small>串行执行</small></div></section>
-          <section class="query-track parallel-track" data-mode="parallel" aria-labelledby="parallel-title"><div class="query-track-heading"><h4 id="parallel-title">parallel_query</h4><span>Java 21 虚拟线程并行执行</span></div><div class="query-lanes"><div class="query-lane"><span>用户资料</span><div class="query-rail"><div class="query-task task-user" style="--start:0%;--duration:31%"><i></i><span>查询</span></div></div></div><div class="query-lane"><span>订单列表</span><div class="query-rail"><div class="query-task task-order" style="--start:0%;--duration:38%"><i></i><span>查询</span></div></div></div><div class="query-lane"><span>账户信息</span><div class="query-rail"><div class="query-task task-account" style="--start:0%;--duration:31%"><i></i><span>查询</span></div></div></div></div><div class="query-result"><span class="query-result-dot"></span><span class="query-result-label">汇总结果</span><small>作用域内等待全部查询</small></div></section>
+    <section class="chapter" id="skills" data-chapter="1" aria-labelledby="skills-title">
+      <div class="chapter-copy">
+        <p class="eyebrow">01 / 技术栈</p><h2 id="skills-title">技术栈<span>。</span></h2>
+        <p class="section-lead">Java 服务开发、数据处理、异步消息和 AI 模型接入，也有 Flutter 与 Electron 开发经验。</p>
+        <div class="skill-index" id="skill-index" role="group" aria-label="选择技术"></div>
+        <div class="skill-reading" id="skill-reading"><span id="skill-kind">Java 服务开发</span><h3 id="skill-title">Spring</h3><p id="skill-description"></p></div>
+        <div class="capability-list">
+          <article><h3>Java 服务开发</h3><p>Java · Spring Boot · Spring Cloud Alibaba · MyBatis-Plus</p></article>
+          <article><h3>AI 与内容处理</h3><p>模型 API · OCR / ASR · Embedding · Spring AI</p></article>
+          <article><h3>数据与缓存</h3><p>MySQL · Oracle · Redis · Redisson · ShardingSphere</p></article>
+          <article><h3>服务通信与任务</h3><p>RabbitMQ · WebSocket · XXL-JOB</p></article>
+          <article><h3>部署与监控</h3><p>Linux · Nginx · Prometheus · Grafana · ELK</p></article>
+          <article><h3>跨端开发与协作</h3><p>Flutter · Electron</p></article>
         </div>
-        <div class="query-demo-bottom"><p id="query-explanation">示意查询互不依赖且返回非空结果的场景。使用 @ParallelScope + @ParallelQuery；事务内同步执行。时间线仅说明执行方式，不代表性能测试。</p><div class="query-controls"><button type="button" id="query-play" aria-pressed="false">暂停演示 Ⅱ</button><button type="button" id="query-replay">重新演示 ↻</button></div></div>
-      </aside>
+      </div>
     </section>
-    <section class="section experience-section wrap" id="experience" aria-labelledby="experience-title"><div class="section-top"><div><div class="eyebrow section-kicker">03</div><h2 id="experience-title">工作经历</h2></div></div><div id="timeline" class="timeline"></div></section>
-    <section class="section wrap education-section" aria-labelledby="education-title"><div><div class="eyebrow section-kicker">04</div><h2 id="education-title">教育经历</h2><p class="education-lead">兴趣：乒乓球、电竞。</p></div><div class="education-list"><article><span class="small-label">2020 — 2023</span><h3>计算机科学与技术</h3><p>本科</p></article><article><span class="small-label">2015 — 2018</span><h3>电子商务</h3><p>大专</p></article></div></section>
-    <section class="contact wrap" id="contact" aria-labelledby="contact-title"><div class="eyebrow">05</div><h2 id="contact-title">联系方式</h2><div class="contact-bottom"><div><p>邮箱</p><a class="email" href="mailto:68449317@qq.com">68449317@qq.com <span>↗</span></a></div><button class="button primary" id="copy-email">复制邮箱 <span>↗</span></button></div><p id="copy-status" class="copy-status" role="status"></p></section>
+    <section class="chapter projects" id="projects" data-chapter="2" aria-labelledby="projects-title">
+      <div class="chapter-copy">
+        <p class="eyebrow">02 / 项目经历</p><h2 id="projects-title">项目经历<span>。</span></h2>
+        <p class="section-lead">参与过数据中台、助贷平台、知识付费产品及 CRM / ERP 系统。项目详情包含业务背景和负责的工作。</p>
+        <div class="project-filters" role="group" aria-label="项目分类"><button data-filter="all" aria-pressed="true">全部</button><button data-filter="ai" aria-pressed="false">AI 应用</button><button data-filter="finance" aria-pressed="false">金融业务</button><button data-filter="product" aria-pressed="false">产品研发</button></div>
+        <div class="project-list" id="project-list"></div>
+      </div>
+      <div class="archive-controls" aria-label="项目档案翻页"><button id="project-prev" aria-label="上一个项目">←</button><span id="archive-count">01 / 07</span><button id="project-next" aria-label="下一个项目">→</button><button id="archive-open">项目详情 ↗</button></div>
+    </section>
+    <section class="chapter" id="experience" data-chapter="3" aria-labelledby="experience-title">
+      <div class="chapter-copy">
+        <p class="eyebrow">03 / 工作经历</p><h2 id="experience-title">工作经历<span>。</span></h2>
+        <div class="career-list" id="career-list"></div>
+        <div class="education"><span class="eyebrow">教育经历</span><div><p><b>计算机科学与技术</b><span>本科 · 2020 — 2023</span></p><p><b>电子商务</b><span>大专 · 2015 — 2018</span></p></div><small>兴趣：乒乓球、电竞。</small></div>
+      </div>
+    </section>
+    <section class="chapter" id="opensource" data-chapter="4" aria-labelledby="open-title">
+      <div class="chapter-copy">
+        <p class="eyebrow">04 / 个人开源</p><h2 id="open-title">开源项目<span>。</span></h2>
+        <p class="open-name">parallel_query <a href="https://github.com/z6221668/parallel_query" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 查看 parallel_query">↗</a></p>
+        <p class="section-lead">用于并行执行接口中的独立只读查询，通过 Future 获取结果并汇总返回。</p>
+        <ol class="query-steps"><li><span>01</span><div><h3>提交任务</h3><p>将用户、订单和账户等独立只读查询交给并行任务。</p></div></li><li><span>02</span><div><h3>同时查询</h3><p>使用 Java 21 虚拟线程，减少主流程中的串行等待。</p></div></li><li><span>03</span><div><h3>汇总返回</h3><p>通过 Future 取得各项结果，组合成接口响应。</p></div></li></ol>
+        <p class="diagram-note">右侧为流程示意，动画时长不代表性能测试。</p>
+        <button class="button outline-button" id="replay-query">重新演示 <span>↻</span></button>
+      </div>
+    </section>
+    <section class="chapter contact" id="contact" data-chapter="5" aria-labelledby="contact-title">
+      <div class="chapter-copy">
+        <p class="eyebrow">05 / 联系方式</p><h2 id="contact-title">联系方式<span>。</span></h2>
+        <p class="section-lead">邮箱联系：</p>
+        <a class="email" href="mailto:68449317@qq.com">68449317@qq.com <span>↗</span></a>
+        <div class="actions"><button class="button primary" id="copy-email">复制邮箱 <span>↗</span></button><a class="button text-button" href="https://github.com/z6221668" target="_blank" rel="noopener noreferrer">GitHub <span>↗</span></a></div>
+        <p id="copy-status" role="status"></p>
+        <div class="closing"><span>HYTEX / 开发档案</span><a href="#intro">回到顶部 ↑</a></div>
+      </div>
+    </section>
   </main>
-  <dialog id="project-dialog" class="project-dialog" aria-labelledby="dialog-title"><form method="dialog"><button class="dialog-close" aria-label="关闭项目详情">×</button></form><p id="dialog-category" class="eyebrow"></p><h2 id="dialog-title"></h2><p id="dialog-period" class="project-period"></p><h3 class="dialog-work-title">项目描述</h3><p id="dialog-summary" class="dialog-summary"></p><div id="dialog-tags"></div><h3 class="dialog-work-title">工作内容</h3><ul id="dialog-work"></ul></dialog>
-  <footer class="footer wrap"><span>HYTEX <span class="footer-divider">/</span> Java 后端开发</span><a href="#">回到顶部 ↑</a></footer>
-  <noscript><p class="noscript">请启用 JavaScript 查看项目详情与工作经历。</p></noscript>
+  <dialog id="project-dialog" aria-labelledby="dialog-title"><form method="dialog"><button class="dialog-close" aria-label="关闭项目详情">×</button></form><p id="dialog-category" class="eyebrow"></p><h2 id="dialog-title"></h2><p id="dialog-period"></p><h3>项目描述</h3><p id="dialog-summary"></p><div id="dialog-tags"></div><h3>工作内容</h3><ul id="dialog-work"></ul></dialog>
+  <noscript><p class="noscript">请启用 JavaScript 浏览完整项目和工作经历。邮箱：68449317@qq.com。</p></noscript>
 </body>
 </html>

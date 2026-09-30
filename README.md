@@ -1,80 +1,47 @@
-# HYTEX · 个人简历页
+# HYTEX · 开发档案
 
-基于提供的简历制作，采用编辑式排版、暖白背景和低饱和的绿色强调。视觉参考 frontend-slides 的 Paper & Ink 与 Swiss Modern，以文字层级、细分隔线和留白组织内容，保留简历网页的滚动和手机排版。纯 HTML / CSS / JavaScript，无 npm 依赖、无后端，字体和资源均保存在本目录。可直接使用 GitHub Pages 托管。
+这是 `feat/threejs-rewrite` 分支的整站重写版本。首页、技术、项目、职业经历、开源项目和联系方式使用同一套 Three.js 空间场景，随滚动切换。暖白与墨绿的排版配合立体封面、粒子关系图、项目档案、时间轴、查询流程和信封。正文使用可选择的 HTML 文字，支持键盘、手机和无 WebGL 时的阅读。
+
+当前线上版本仍由 `main` 分支发布。此分支需要完成审阅并合并后才会替换线上页面。
 
 ## 本地查看
 
-直接打开 `index.html` 可以浏览。若要检查复制邮箱等需要安全上下文的功能，在本目录运行：
+ES 模块需要通过 HTTP 加载。在本目录运行：
 
 ```bash
 python3 -m http.server 4173 --bind 127.0.0.1
 ```
 
-打开 http://localhost:4173 。这只是本机预览，不需要部署自己的服务器。
+打开 http://localhost:4173 。无需自建线上服务器，不需要 npm 安装或构建即可运行。
 
-## 通过 GitHub Pages 发布（推荐）
+## 页面交互
 
-1. 登录 GitHub，创建公开仓库 `resume-site`。GitHub Free 可在公开仓库使用 Pages。
-2. 上传此目录内的文件到仓库根目录，确保根目录直接有 `index.html`，并保留 `assets` 子目录。不要把整个 `resume-site` 文件夹作为仓库的下一层。
-3. 提交到 `main` 分支后，进入仓库 **Settings → Pages**。
-4. 在 **Build and deployment → Source** 选择 **Deploy from a branch**。
-5. 选择 **main** 分支和 **/ (root)** 目录，点击 **Save**。
-6. 等待 GitHub 的 **Actions → pages build and deployment** 完成。回到 Pages 设置页复制实际站点链接。
-7. 地址通常为 `https://你的GitHub用户名.github.io/resume-site/`。将这个链接发给招聘方即可，无需发送源代码或自己准备服务器。
+- 滚动或点击章节导航切换场景，过渡使用约 0.7 秒的正弦缓入缓出和画面交叉淡化。连续切换时从当前画面继续过渡；技术标签同步淡化。鼠标移动带来轻微视差。
+- 技术图中的 AI / Spring 节点更大。点击图中的节点或正式技术列表，粒子用 1.2 秒迁移并聚合，再逐字展示实际技术实践。文字完成后停留 10 秒，粒子沿路径返回。
+- 再次点击展示中的技术节点，粒子从右侧吸入，再从一处空位重组。没有可见出口；技术仍保留在关系图中。
+- 项目列表、悬停和翻页按钮与三维档案同步。点击档案或列表打开独立详情弹窗，支持 Esc、关闭按钮和遮罩关闭，退出后恢复焦点。
+- 工作经历与三维时间轴同步；点击年份定位到对应经历。公司名称保留，教育经历只展示专业、学历和日期。
+- `parallel_query` 用三维流程演示独立查询同时执行，再汇总返回。支持重新演示，示意时长不代表性能测试。
+- 联系方式只提供邮箱，支持复制和邮件链接。公开昵称为 HYTEX，无电话、照片、真实姓名或 PDF 下载。
+- 动画可暂停；后台标签页和项目弹窗打开时暂停渲染，跟随系统减少动态效果偏好。WebGL 无法使用或上下文丢失时仍能阅读和打开项目详情。
 
-如果希望地址没有 `/resume-site/`，将仓库命名为 `你的GitHub用户名.github.io`，按同样方法发布。一个账号只能有一个这样的用户站点；已有用户站点时推荐使用 `resume-site` 项目仓库。
+## 资源与修改
 
-网页上传方式：新仓库页面选择 **uploading an existing file**，或在仓库 **Add file → Upload files**。上传本目录内的网页文件和 `assets` 文件夹；`.nojekyll` 可使用 Git 命令上传。此站点不使用下划线目录，即便网页上传遗漏该空文件，仍能按上述方式发布。
+- `index.html`：整站章节、个人介绍、技术分类、教育和邮箱。
+- `resume-data.js`：11 项技术实践、7 个项目和 4 段工作经历。项目中的“至今”沿用原简历，请根据实际情况更新。
+- `spatial-app.js`：内容渲染、导航、分类、打字、项目弹窗、邮箱复制与场景事件。
+- `spatial-scene.js`：六个 Three.js 场景、GPU 粒子迁移、档案翻页、运行流程、视差与渲染生命周期。
+- `spatial.css`：全新排版、手机布局、键盘焦点、减少动态效果和打印样式。
+- `assets/vendor/three.module.js`：Three.js **0.186.1**，从官方 npm 发布包提取并用 esbuild 打包、压缩必要导出。约 563 KB，随本站托管，不依赖外部 CDN。
+- `assets/vendor/three-LICENSE.txt`：Three.js MIT 许可证。
+- `assets/archivo.ttf` / `assets/archivo-license.txt`：本地 Archivo 字体与 SIL Open Font License。
 
-如果使用 Git，在 GitHub 新建空仓库后，在本目录执行（替换用户名）：
+Three.js 的场景与点云实现参考官方 [WebGLRenderer](https://threejs.org/docs/pages/WebGLRenderer.html)、[Points](https://threejs.org/docs/pages/Points.html) 和 [ShaderMaterial](https://threejs.org/docs/pages/ShaderMaterial.html) 文档。渲染采用单个 WebGL 画布，限制像素倍率，仅显示当前章节及过渡章节，页面退出时释放 GPU 资源。
 
-```bash
-git init -b main
-git add .
-git commit -m "Create personal resume website"
-git remote add origin https://github.com/你的GitHub用户名/resume-site.git
-git push -u origin main
-```
+预览截图、原始简历、PDF、node_modules 和构建工具不进入发布目录。
 
-之后仍需在仓库 Settings → Pages 中选择发布分支。每次修改后提交并推送，GitHub 会自动更新站点。
+## GitHub Pages
 
-官方说明：[创建 GitHub Pages 站点](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)、[配置发布源](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)。
+仓库：[z6221668/hytex](https://github.com/z6221668/hytex)。所有引用都使用相对路径，兼容项目站点子路径。
 
-## 当前仓库
-
-源码仓库：[z6221668/hytex](https://github.com/z6221668/hytex)。
-
-此仓库名称与账号名不同，属于项目站点。推送后，在仓库 **Settings → Pages** 选择 **Deploy from a branch → main → / (root)**。发布完成后以 Pages 设置页显示的地址为准；默认项目地址为 `https://z6221668.github.io/hytex/`。Git 推送完成不代表 Pages 已启用或发布成功。
-
-## 修改内容
-
-- `resume-data.js`：技术球、项目经历、工作经历。技术球的 `size` 控制大小，`kind` 是技术类型，`description` 是技术说明。位置由背景动画自动生成。
-- `index.html`：昵称、个人介绍、教育与邮箱。网页本身就是公开简历，不提供 PDF 下载。
-- `app.js`：复制邮箱地址与互动逻辑。更换邮箱时同步修改此文件和 `index.html`。
-- `styles.css`：基础布局、技术卡片、项目与工作经历。
-- `background.css`：全页背景小球、右侧说明和手机适配。
-- `editorial.css`：当前编辑式排版、阅读背景、技术栏、项目列表与手机样式。
-- `background.js`：随机漂浮、滑向右侧、展示说明、返回背景及暂停控制。
-- `query-demo.js` / `query-demo.css`：开源项目的串行与并行查询时间线动画、暂停重播与手机适配。时间线使用示意时长，不代表性能测试。
-- `assets/archivo.ttf` / `assets/archivo-license.txt`：本地 Archivo 字体及 SIL Open Font License。
-预览图仅用于本地检查，由 `.gitignore` 排除，不上传至 Pages 仓库。
-
-原文同时出现“7 年”和“8 年”经验，网页采用“2018 年起从事研发”，避免冲突。XLEND、贷超项目中的“至今”沿用原文，发布前请核实最新日期。AI 技术展示仅采用原简历已有的 Spring AI、模型服务接入与工作流实践。项目规模、业务背景和技术处理放在项目描述与工作内容中，不单独展示成绩数字。
-
-发布后页面可公开访问。公开版使用 HYTEX，联系方式仅有邮箱，保留公司名称与项目经历，隐藏真实姓名、照片、电话、个人所在城市和院校名称。公司名称中保留的地名属于公司信息。网站目录不存放原始简历或 PDF 文件。
-
-## 页面功能
-
-- 全页背景的技术球采用分区布点，在球较少、文字遮挡较少的位置生成；漂移时选择疏散区域并缓慢转向，相邻球通过柔性分离避免聚集。滚动时更新阅读区，窗口变化时保持相对分布。粒子球缓慢移动、旋转，AI / Spring 球更大。随机选中的球滑到右侧，技术说明逐字显示；显示完成后停留 10 秒，沿原路径返回出发位置。
-- 点击背景技术球，会直接移到右侧展示说明。展示中的球被点击后，说明立即关闭，粒子以当前球为中心依次从右侧吸入，再从随机的背景空位中的一个点依次喷出并补成原球，继续漂浮。没有可见的小口或标签。每次点击重新开始回收计时；转移过程中暂时锁定技术选择，避免其他点击打断喷射。
-- 重组时会推开附近球，碰撞按球大小计算质量，以冲量、碰撞分离和阻尼处理反弹。回收不删除该技术球。手动点击回收时，即使背景暂停也播放完整过程；减少动态效果时减小转移轨迹的弯曲幅度，保留点击反馈。通道只临时使用一个 Canvas，结束后清理。
-- 首页“技术说明”选择框可以指定技术；选择“随机展示”恢复自动轮换。手机端说明在右下方显示。
-- 独立技术栈区，按 Java 服务、AI 内容处理、数据与缓存、服务通信、部署与监控、跨端开发分类展示实际工作。Flutter / Electron 纳入正式技术栏。
-- 可以暂停背景；跟随系统“减少动态效果”偏好；标签页切到后台时暂停动画。暂停时仍可通过选择框查看技术说明。
-- 七个项目分类筛选；项目详情使用弹窗，保持卡片高度不变。支持 Esc、关闭按钮和点击遮罩关闭，关闭后回到原位置；四段工作经历与教育经历。
-- 邮箱复制、邮件链接与开源项目入口。
-- 开源项目区对比逐个查询与虚拟线程并行查询，展示独立任务执行、等待与汇总返回。支持暂停和重新演示；离开可视区域、打开项目详情或切换标签页时暂停，减少动态效果时显示完整静态示意图。
-- 转移粒子在桌面为 48 / 72 个，手机为 32 / 48 个；粒径和透明度降低，三组路径批量填充，只清理变化区域。转移动画逐帧绘制，重组末尾渐变衔接静态球；移动粒子带短拖尾和较亮的粒子头；空白区域中的球适当提高可见度，背景点击范围比球半径扩大 10px，链接和按钮仍优先响应；名词 hover 无阴影或滤镜。
-- 手机布局、键盘焦点、跳至正文、打印样式。
-
-所有资源使用相对路径，兼容 GitHub Pages 项目仓库的子路径，也可部署到其他静态托管平台。
+在仓库 **Settings → Pages** 选择 **Deploy from a branch → main → / (root)**。合并并推送到 `main` 后，等待 Pages 发布任务成功。默认地址为 `https://z6221668.github.io/hytex/`，实际地址与发布状态以 Pages 设置页为准。新分支不会自动替换 `main` 的线上页面。
