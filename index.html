@@ -7,10 +7,10 @@
   <meta name="description" content="HYTEX 的开发经历：Java 后端、Spring 微服务、金融业务与 AI 应用。">
   <title>HYTEX · 开发档案</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./spatial.css?v=2">
+  <link rel="stylesheet" href="./spatial.css?v=4">
   <script src="./resume-data.js" defer></script>
-  <script src="./spatial-app.js?v=2" defer></script>
-  <script src="./spatial-scene.js?v=2" type="module"></script>
+  <script src="./spatial-app.js?v=4" defer></script>
+  <script src="./spatial-scene.js?v=5" type="module"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳至正文</a>
@@ -80,7 +80,13 @@
         <p class="open-name">parallel_query <a href="https://github.com/z6221668/parallel_query" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 查看 parallel_query">↗</a></p>
         <p class="section-lead">用于并行执行接口中的独立只读查询，通过 Future 获取结果并汇总返回。</p>
         <ol class="query-steps"><li><span>01</span><div><h3>提交任务</h3><p>将用户、订单和账户等独立只读查询交给并行任务。</p></div></li><li><span>02</span><div><h3>同时查询</h3><p>使用 Java 21 虚拟线程，减少主流程中的串行等待。</p></div></li><li><span>03</span><div><h3>汇总返回</h3><p>通过 Future 取得各项结果，组合成接口响应。</p></div></li></ol>
-        <p class="diagram-note">右侧为流程示意，动画时长不代表性能测试。</p>
+        <div class="query-code-demo" aria-label="Java 查询执行过程">
+          <div class="query-code-tabs" role="tablist" aria-label="查看执行方式"><button role="tab" id="code-tab-parallel" data-code-mode="parallel" aria-controls="code-panel-parallel" aria-selected="true">同时查询</button><button role="tab" id="code-tab-serial" data-code-mode="serial" aria-controls="code-panel-serial" aria-selected="false" tabindex="-1">逐个查询</button><span>JAVA</span></div>
+          <div id="code-panel-parallel" role="tabpanel" aria-labelledby="code-tab-parallel"><pre><code><span data-line="0">@ParallelScope</span><span data-line="1">public Profile load() {</span><span data-line="2">  var user = tasks.submit(this::loadUser);</span><span data-line="3">  var orders = tasks.submit(this::loadOrders);</span><span data-line="4">  var account = tasks.submit(this::loadAccount);</span><span data-line="5">  return new Profile(</span><span data-line="6">    tasks.await(user),</span><span data-line="7">    tasks.await(orders),</span><span data-line="8">    tasks.await(account));</span><span data-line="9">}</span></code></pre></div>
+          <div id="code-panel-serial" role="tabpanel" aria-labelledby="code-tab-serial" hidden><pre><code><span data-line="0">public Profile load() {</span><span data-line="1">  var user = loadUser();</span><span data-line="2">  var orders = loadOrders();</span><span data-line="3">  var account = loadAccount();</span><span data-line="4">  return new Profile(user, orders, account);</span><span data-line="5">}</span></code></pre></div>
+          <p class="query-code-status"><span class="query-code-dot"></span><span id="query-code-status">准备提交三个查询</span></p>
+        </div>
+        <p class="diagram-note">代码与动画同步。tasks 为注入的 ParallelQueryTasks；示例基于 1.1.0-SNAPSHOT 源码。动画时长不代表性能测试。</p>
         <button class="button outline-button" id="replay-query">重新演示 <span>↻</span></button>
       </div>
     </section>
@@ -95,7 +101,7 @@
       </div>
     </section>
   </main>
-  <dialog id="project-dialog" aria-labelledby="dialog-title"><form method="dialog"><button class="dialog-close" aria-label="关闭项目详情">×</button></form><p id="dialog-category" class="eyebrow"></p><h2 id="dialog-title"></h2><p id="dialog-period"></p><h3>项目描述</h3><p id="dialog-summary"></p><div id="dialog-tags"></div><h3>工作内容</h3><ul id="dialog-work"></ul></dialog>
+  <dialog id="project-dialog" aria-labelledby="dialog-title"><form method="dialog"><button class="dialog-close" aria-label="关闭项目详情">×</button></form><div class="archive-masthead"><span>PROJECT ARCHIVE</span><span id="dialog-number"></span></div><p id="dialog-category" class="eyebrow"></p><h2 id="dialog-title"></h2><p id="dialog-period"></p><h3>项目描述</h3><p id="dialog-summary"></p><div id="dialog-tags"></div><h3>工作内容</h3><ul id="dialog-work"></ul></dialog>
   <noscript><p class="noscript">请启用 JavaScript 浏览完整项目和工作经历。邮箱：68449317@qq.com。</p></noscript>
 </body>
 </html>

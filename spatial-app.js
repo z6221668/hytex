@@ -49,13 +49,19 @@
     dispatch('spatial-select-project', { index });
   }
   function showProject(index, source) {
+    if (dialog.open) return;
     opener = source;
     selectProject(index);
     const p = data.projects[index];
-    for (const [id, value] of Object.entries({ 'dialog-category': p.label, 'dialog-title': p.title, 'dialog-period': p.period, 'dialog-summary': p.summary })) document.getElementById(id).textContent = value;
+    for (const [id, value] of Object.entries({ 'dialog-number': p.number, 'dialog-category': p.label, 'dialog-title': p.title, 'dialog-period': p.period, 'dialog-summary': p.summary })) document.getElementById(id).textContent = value;
     document.querySelector('#dialog-tags').replaceChildren(...p.tags.map(t => el('span', '', t)));
     document.querySelector('#dialog-work').replaceChildren(...p.details.map(t => el('li', '', t)));
+    dialog.classList.remove('detail-ready', 'detail-leaving');
+    const spatial = window.HYTEX_SCENE_READY && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    dialog.classList.toggle('spatial-detail', Boolean(spatial));
     dialog.showModal(); dialog.scrollTop = 0; document.body.classList.add('dialog-open'); dispatch('spatial-modal', true);
+    if (spatial) dispatch('spatial-project-open', { index });
+    else dialog.classList.add('detail-ready');
   }
   function renderProjects() {
     document.querySelector('#project-list').replaceChildren(...filtered().map(({ p, index }) => {
@@ -82,8 +88,23 @@
     row.addEventListener('pointerenter', () => dispatch('spatial-select-career', { index })); row.addEventListener('focus', () => dispatch('spatial-select-career', { index }));
     document.querySelector('#career-list').append(row);
   });
-  dialog.addEventListener('close', () => { document.body.classList.remove('dialog-open'); dispatch('spatial-modal', false); if (opener?.isConnected) opener.focus({ preventScroll: true }); });
-  dialog.addEventListener('click', event => { if (event.target !== dialog) return; const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) dialog.close(); });
+  function closeProject() {
+    if (dialog.classList.contains('detail-leaving')) return;
+    if (dialog.classList.contains('spatial-detail') && window.HYTEX_SCENE_READY) {
+      dialog.classList.add('detail-leaving'); dispatch('spatial-project-close');
+    } else { dialog.close(); finishProjectClose(); }
+  }
+  dialog.querySelector('form').addEventListener('submit', event => { event.preventDefault(); closeProject(); });
+  dialog.addEventListener('cancel', event => { event.preventDefault(); closeProject(); });
+  document.addEventListener('spatial-project-ready', () => dialog.classList.add('detail-ready'));
+  function finishProjectClose() {
+    if (dialog.open || !document.body.classList.contains('dialog-open')) return;
+    dialog.classList.remove('spatial-detail', 'detail-ready', 'detail-leaving'); document.body.classList.remove('dialog-open');
+    dispatch('spatial-modal', false); if (opener?.isConnected) opener.focus({ preventScroll: true });
+  }
+  document.addEventListener('spatial-project-returned', () => { if (dialog.open) dialog.close(); finishProjectClose(); });
+  dialog.addEventListener('close', finishProjectClose);
+  dialog.addEventListener('click', event => { if (event.target !== dialog) return; const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) closeProject(); });
   document.querySelector('#copy-email').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText('68449317@qq.com'); document.querySelector('#copy-status').textContent = '邮箱已复制。'; }
     catch { document.querySelector('#copy-status').textContent = '请选中邮箱复制，或点击邮箱直接发送邮件。'; }
@@ -94,6 +115,41 @@
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', e => { setPaused(e.matches); if (e.matches) typeDescription(true); });
   setPaused(state.paused);
   document.querySelector('#replay-query').addEventListener('click', () => dispatch('spatial-replay-query'));
+  const codeTabs = [...document.querySelectorAll('[data-code-mode]')];
+  let codeMode = 'parallel', queryStep = { serialLine: 0, parallelLine: 0, submitting: true, serialStates: [0, 0, 0], parallelStates: [0, 0, 0] };
+  const taskNames = ['用户资料', '订单列表', '账户信息'];
+  document.querySelectorAll('.query-code-demo code>span').forEach(line => {
+    const tokens = line.textContent.split(/(@ParallelScope|\b(?:public|var|return|new|submit|await)\b)/g);
+    line.replaceChildren(...tokens.map((value, index) => index % 2 ? el('b', 'code-keyword', value) : document.createTextNode(value)));
+  });
+  function renderQueryCode() {
+    const parallel = codeMode === 'parallel', active = parallel ? queryStep.parallelLine : queryStep.serialLine;
+    const states = parallel ? queryStep.parallelStates : queryStep.serialStates;
+    const done = states.every(value => value === 2);
+    document.querySelectorAll(`#code-panel-${codeMode} code>span`).forEach(line => {
+      const number = Number(line.dataset.line);
+      line.classList.toggle('active', number === active);
+      line.classList.toggle('complete', parallel ? number >= 2 && number <= 4 && states[number - 2] === 2 : number >= 1 && number <= 3 && states[number - 1] === 2);
+    });
+    const waiting = states.findIndex(value => value !== 2);
+    document.querySelector('#query-code-status').textContent = done ? '三项结果已返回，组成 Profile' : queryStep.submitting ? (parallel ? '依次提交三个任务，不等待查询完成' : '准备执行第一个查询') : parallel ? `三个查询已提交，等待${taskNames[waiting]}` : `正在查询${taskNames[waiting]}，其余任务等待`;
+  }
+  function selectCodeMode(mode) {
+    codeMode = mode;
+    codeTabs.forEach(tab => { const selected = tab.dataset.codeMode === mode; tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1; document.querySelector(`#code-panel-${tab.dataset.codeMode}`).hidden = !selected; });
+    renderQueryCode();
+  }
+  codeTabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectCodeMode(tab.dataset.codeMode));
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault(); const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : (index + 1) % 2;
+      selectCodeMode(codeTabs[next].dataset.codeMode); codeTabs[next].focus();
+    });
+  });
+  document.addEventListener('spatial-query-step', event => { queryStep = event.detail; renderQueryCode(); });
+  document.addEventListener('spatial-renderer-fallback', () => { document.querySelector('#query-code-status').textContent = 'Java 执行流程示例'; });
+  renderQueryCode();
   const captions = [ ['BACKEND / AI / PRODUCT', 'Java 后端 · AI 应用 · 跨端开发'], ['JAVA / SPRING / DATA', '点击节点查看技术实践'], ['PROJECT ARCHIVE', '项目描述与负责的工作'], ['2018 — 2026', 'Java 后端开发经历'], ['PARALLEL QUERY', '独立查询，同时执行'], ['KEEP IN TOUCH', '68449317@qq.com'] ];
   function updateChapter() {
     scrolling = false;

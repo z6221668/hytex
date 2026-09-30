@@ -11,9 +11,11 @@ try {
 }
 if (renderer) {
   await document.fonts.ready;
-  initScene(renderer);
+  await initScene(renderer);
 }
-function initScene(renderer) {
+async function initScene(renderer) {
+  const paperGrain = new Image(); paperGrain.src = new URL('./assets/paper-grain.png', import.meta.url).href;
+  await paperGrain.decode();
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, 1, .1, 100);
   const main = new THREE.Group(); scene.add(main);
@@ -32,11 +34,12 @@ function initScene(renderer) {
   renderer.toneMappingExposure = 1.15;
   let width = innerWidth, height = innerHeight, mobile = width <= 700;
   let chapter = window.HYTEX_SPATIAL.state.chapter, transition = 1, previousChapter = chapter;
-  let paused = window.HYTEX_SPATIAL.state.paused, modal = false, lost = false, frame = 0, lastTime = 0, clock = 0, queryStarted = 0;
+  let paused = window.HYTEX_SPATIAL.state.paused, modal = false, lost = false, preparing = true, frame = 0, lastTime = 0, clock = 0, queryStarted = 0;
   let selectedSkill = 1, selectedProject = 0, selectedCareer = 0, scrollProgress = 0;
   let interactionFrames = 0, manualQueryUntil = 0;
   let skillReturnAt = 0;
   let skillTransfer = null, projectIndices = data.projects.map((_, i) => i);
+  let projectPresentation = null;
   const pointer = new THREE.Vector2(), pointerTarget = new THREE.Vector2(), raycaster = new THREE.Raycaster();
   const projected = new THREE.Vector3(), world = new THREE.Vector3();
   const labels = document.querySelector('#scene-labels');
@@ -61,16 +64,23 @@ function initScene(renderer) {
   const blendGeometry = new THREE.PlaneGeometry(2, 2);
   blendScene.add(new THREE.Mesh(blendGeometry, blendMaterial));
   resources.add(blendGeometry); resources.add(blendMaterial);
-  let fromTarget = new THREE.WebGLRenderTarget(1, 1);
-  const liveTarget = new THREE.WebGLRenderTarget(1, 1);
-  let spareTarget = new THREE.WebGLRenderTarget(1, 1);
+  // Lighting exceeds 1.0 in linear space. An 8-bit snapshot clips those values
+  // before tone mapping and makes white surfaces suddenly appear gray.
+  const hdr = renderer.extensions.has('EXT_color_buffer_float');
+  const targetOptions = { type: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType };
+  if (!hdr) renderer.toneMapping = THREE.NoToneMapping;
+  let fromTarget = new THREE.WebGLRenderTarget(1, 1, targetOptions);
+  const liveTarget = new THREE.WebGLRenderTarget(1, 1, targetOptions);
+  let spareTarget = new THREE.WebGLRenderTarget(1, 1, targetOptions);
   [fromTarget, liveTarget, spareTarget].forEach(target => resources.add(target));
   let lastBlend = 1, labelOpacity = chapter === 1 ? 1 : 0, labelOpacityFrom = labelOpacity;
   const sceneEase = t => (1 - Math.cos(Math.PI * t)) / 2;
 
   function outputTo(target) {
     renderer.setRenderTarget(target);
-    if (target) { renderer.setViewport(0, 0, target.width, target.height); renderer.setScissorTest(false); }
+    // setRenderTarget applies the target's physical-pixel viewport. setViewport
+    // would multiply it by DPR again and magnify snapshots on Retina screens.
+    if (target) renderer.setScissorTest(false);
     else {
       const r = scene.userData.region;
       renderer.setViewport(r.x, height - r.y - r.h, r.w, r.h);
@@ -226,7 +236,8 @@ function initScene(renderer) {
     const card = new THREE.Group(); archive.add(card);
     const sheet = mesh(roundedGeometry(3.5, 4.65, .07, .055), index === 0 ? white : lightGreen, card); sheet.userData.projectIndex = index;
     const draw = (p, w, h) => {
-      p.fillStyle = '#faf8f2'; p.fillRect(0, 0, w, h);
+      p.fillStyle = '#f6f3e9'; p.fillRect(0, 0, w, h);
+      p.fillStyle = p.createPattern(paperGrain, 'repeat'); p.fillRect(0, 0, w, h);
       p.fillStyle = '#ad8457'; p.font = '24px Archivo'; p.fillText('P R O J E C T   A R C H I V E', 70, 72);
       p.strokeStyle = '#bcc9b9'; p.lineWidth = 2; p.beginPath(); p.moveTo(70, 110); p.lineTo(w - 70, 110); p.stroke();
       p.fillStyle = '#3d6d58'; p.font = '330px Archivo'; p.fillText(project.number, 55, h * .4);
@@ -253,26 +264,39 @@ function initScene(renderer) {
     return { group, sheet };
   });
 
-  // Open-source scene: an input fans out to three concurrent read tasks, then joins a result.
-  const query = new THREE.Group(); groups[4].add(query); query.rotation.set(-.07, -.15, 0);
-  const nodePositions = [ [-2.2, 0, 0], [0, 1.55, 0], [0, 0, 0], [0, -1.55, 0], [2.2, 0, 0] ];
-  const nodeNames = ['聚合接口', '用户资料', '订单列表', '账户信息', '汇总返回'];
-  const queryNodes = nodePositions.map((position, index) => {
-    const group = new THREE.Group(); group.position.set(...position); query.add(group);
-    const box = mesh(roundedGeometry(index === 0 || index === 4 ? 1.12 : 1.42, .79, .2, .08), index === 4 ? green : white, group);
-    writing(group, index === 0 || index === 4 ? 1 : 1.3, .52, (p, w, h) => { p.fillStyle = index === 4 ? '#fffdf4' : '#466650'; p.font = '95px Archivo, sans-serif'; p.textAlign = 'center'; p.fillText(nodeNames[index], w / 2, h * .57); }, [0, 0, .14]);
-    return { group, box };
-  });
-  const queryPaths = [];
-  for (let i = 1; i <= 3; i++) {
-    const from = new THREE.Vector3(-1.57, 0, 0), mid = new THREE.Vector3(-.82, nodePositions[i][1], .1), end = new THREE.Vector3(-.8, nodePositions[i][1], .1);
-    const outbound = new THREE.QuadraticBezierCurve3(from, mid, end);
-    const inbound = new THREE.QuadraticBezierCurve3(new THREE.Vector3(.8, nodePositions[i][1], .1), new THREE.Vector3(1.15, nodePositions[i][1], .1), new THREE.Vector3(1.57, 0, .1));
-    [outbound, inbound].forEach(curve => { const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(32)); resources.add(geo); query.add(new THREE.Line(geo, lineMaterial)); });
-    const particle = mesh(new THREE.SphereGeometry(.065, 12, 8), gold, query);
-    queryPaths.push({ outbound, inbound, particle, duration: [1.15, 1.65, 1.3][i - 1] });
+  // Both boards use the same task durations; only their start times differ.
+  const query = new THREE.Group(); groups[4].add(query);
+  const queryPaths = [], queryBoards = [], queryCycle = 6.2;
+  const queryNames = ['用户资料', '订单列表', '账户信息'];
+  function queryText(text, color = '#496758') {
+    return texture((p, w, h) => { p.fillStyle = color; p.font = '88px Archivo, sans-serif'; p.textAlign = 'center'; p.textBaseline = 'middle'; p.fillText(text, w / 2, h / 2); }, 512, 128);
   }
-  writing(query, 2.8, .55, (p, w, h) => { p.fillStyle = '#9d8156'; p.font = '43px Archivo'; p.textAlign = 'center'; p.fillText('F U T U R E   /   J O I N', w / 2, h * .62); }, [0, -2.35, .1]);
+  const statusMaps = [queryText('等待', '#839083'), queryText('查询中', '#a77739'), queryText('已返回', '#277967')];
+  const resultMaps = [queryText('等待结果', '#839083'), queryText('汇总返回  ✓', '#277967')];
+  ['逐个查询', '同时查询'].forEach((name, mode) => {
+    const board = new THREE.Group(); board.position.y = mode === 0 ? 1.62 : -1.62; query.add(board);
+    mesh(roundedGeometry(5.3, 2.9, .075, .09), white, board);
+    writing(board, 4.85, .45, (p, w, h) => {
+      p.fillStyle = mode ? '#277967' : '#4d6156'; p.font = '64px Archivo, sans-serif'; p.fillText(name, 10, h * .72);
+      p.fillStyle = '#9d8156'; p.font = '30px Archivo, sans-serif'; p.textAlign = 'right'; p.fillText(mode ? 'parallel_query' : '完成一项，再开始下一项', w - 10, h * .65);
+    }, [0, 1.01, .075]);
+    const rows = queryNames.map((label, index) => {
+      const y = .45 - index * .57;
+      writing(board, 1.3, .33, (p, w, h) => { p.fillStyle = '#496758'; p.font = '155px Archivo, sans-serif'; p.textBaseline = 'middle'; p.fillText(label, 8, h / 2); }, [-1.75, y, .08]);
+      mesh(roundedGeometry(2.03, .10, .015, .04), lightGreen, board, [.02, y, .085]);
+      const fillMaterial = new THREE.MeshBasicMaterial({ color: '#b79362' }); resources.add(fillMaterial);
+      const fill = mesh(new THREE.PlaneGeometry(2.03, .10), fillMaterial, board, [.02, y, .13]);
+      const head = mesh(new THREE.SphereGeometry(.075, 12, 8), gold, board, [-.99, y, .16]);
+      const statusMaterial = new THREE.MeshBasicMaterial({ map: statusMaps[0], transparent: true, depthWrite: false }); resources.add(statusMaterial);
+      const status = mesh(new THREE.PlaneGeometry(1.12, .28), statusMaterial, board, [1.84, y, .10]);
+      const row = { fill, head, status, y, duration: [1.24, 1.52, 1.24][index], start: mode ? 0 : [0, 1.24, 2.76][index], progress: 0, state: 0 };
+      queryPaths.push(row); return row;
+    });
+    const resultMaterial = new THREE.MeshBasicMaterial({ map: resultMaps[0], transparent: true, depthWrite: false }); resources.add(resultMaterial);
+    const result = mesh(new THREE.PlaneGeometry(1.65, .41), resultMaterial, board, [1.61, -1.04, .1]);
+    writing(board, 2.9, .30, (p, w, h) => { p.fillStyle = '#81907f'; p.font = '75px Archivo, sans-serif'; p.textBaseline = 'middle'; p.fillText(mode ? '三项任务一起开始' : '三项任务依次开始', 10, h / 2); }, [-.97, -1.04, .1]);
+    queryBoards.push({ rows, result, done: false });
+  });
 
   // The closing scene is a letter, rather than another unrelated decorative object.
   const letter = new THREE.Group(); groups[5].add(letter); letter.rotation.set(-.14, -.27, -.12);
@@ -293,6 +317,7 @@ function initScene(renderer) {
     camera.aspect = region.w / region.h; camera.position.set(0, 0, mobile ? 9.2 : 12.2); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix();
     renderer.setViewport(region.x, height - region.y - region.h, region.w, region.h); renderer.setScissor(region.x, height - region.y - region.h, region.w, region.h); renderer.setScissorTest(true);
     scene.userData.region = region;
+    if (projectPresentation) expandProjectViewport();
     const ratio = renderer.getPixelRatio();
     [fromTarget, liveTarget, spareTarget].forEach(target => target.setSize(Math.round(region.w * ratio), Math.round(region.h * ratio)));
     transition = 1; labelOpacity = chapter === 1 ? 1 : 0; labelOpacityFrom = labelOpacity;
@@ -350,6 +375,7 @@ function initScene(renderer) {
   }
   function updateArchive(dt) {
     projectCards.forEach(({ card }, index) => {
+      if (card.parent !== archive) return;
       const inFilter = projectIndices.includes(index); card.visible = inFilter;
       const rank = projectIndices.indexOf(index), chosen = projectIndices.indexOf(selectedProject), relative = (rank - chosen + projectIndices.length) % projectIndices.length;
       const target = index === selectedProject ? new THREE.Vector3(-.2, .08, .6) : new THREE.Vector3(.25 + relative * .15, relative * .1, -.13 * relative);
@@ -357,17 +383,93 @@ function initScene(renderer) {
       card.rotation.z = THREE.MathUtils.lerp(card.rotation.z, index === selectedProject ? -.055 : .025 + relative * .038, (reduced.matches ? 1 : 1 - Math.exp(-dt * 9)));
     });
   }
+  function expandProjectViewport() {
+    const p = projectPresentation, r = scene.userData.region;
+    p.region = { ...r }; p.projection = camera.projectionMatrix.clone();
+    // Remap the existing regional projection into the full canvas. The archive
+    // keeps its exact screen position while the extracted sheet crosses columns.
+    const remap = new THREE.Matrix4().makeScale(r.w / width, r.h / height, 1);
+    remap.elements[12] = (2 * r.x + r.w) / width - 1;
+    remap.elements[13] = 1 - (2 * r.y + r.h) / height;
+    camera.projectionMatrix.premultiply(remap);
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    scene.userData.region = { x: 0, y: 0, w: width, h: height };
+    const rect = document.querySelector('#project-dialog').getBoundingClientRect();
+    const center = new THREE.Vector3((rect.left + rect.width / 2) / width * 2 - 1, 1 - (rect.top + rect.height / 2) / height * 2, p.depth);
+    p.destination = center.clone().unproject(camera);
+    const dx = center.clone(); dx.x += 2 / width;
+    const dy = center.clone(); dy.y += 2 / height;
+    p.destinationScale = new THREE.Vector3(rect.width * dx.unproject(camera).distanceTo(p.destination) / 3.55, rect.height * dy.unproject(camera).distanceTo(p.destination) / 4.70, p.sourceScale.z);
+    if (p.phase === 'hold') { p.card.position.copy(p.destination); p.card.scale.copy(p.destinationScale); }
+    if (p.phase === 'closing') {
+      new THREE.Matrix4().compose(p.localPosition, p.localQuaternion, p.localScale).premultiply(archive.matrixWorld).decompose(p.destination, p.destinationQuaternion, p.destinationScale);
+    }
+  }
+  function openProjectPresentation(index) {
+    if (projectPresentation) return;
+    transition = 1; scene.updateMatrixWorld(true);
+    const { card, face } = projectCards[index];
+    const localPosition = card.position.clone(), localQuaternion = card.quaternion.clone(), localScale = card.scale.clone();
+    const depth = card.getWorldPosition(new THREE.Vector3()).project(camera).z;
+    scene.attach(card);
+    projectPresentation = { card, face, localPosition, localQuaternion, localScale, depth,
+      source: card.position.clone(), sourceQuaternion: card.quaternion.clone(), sourceScale: card.scale.clone(),
+      destinationQuaternion: camera.getWorldQuaternion(new THREE.Quaternion()), elapsed: 0, phase: 'opening', announced: false };
+    document.querySelector('.scene-stage').classList.add('project-presenting');
+    expandProjectViewport(); requestFrame();
+  }
+  function restoreProjectPresentation(announce = true) {
+    const p = projectPresentation; if (!p) return;
+    archive.add(p.card); p.card.position.copy(p.localPosition); p.card.quaternion.copy(p.localQuaternion); p.card.scale.copy(p.localScale); p.face.material.opacity = 1;
+    camera.projectionMatrix.copy(p.projection); camera.projectionMatrixInverse.copy(p.projection).invert(); scene.userData.region = p.region;
+    projectPresentation = null; document.querySelector('.scene-stage').classList.remove('project-presenting');
+    renderer.setRenderTarget(null); renderer.setScissorTest(false); renderer.clear();
+    if (announce) emit('spatial-project-returned');
+  }
+  function closeProjectPresentation() {
+    const p = projectPresentation; if (!p) { emit('spatial-project-returned'); return; }
+    p.source.copy(p.card.position); p.sourceQuaternion.copy(p.card.quaternion); p.sourceScale.copy(p.card.scale);
+    const slot = new THREE.Matrix4().compose(p.localPosition, p.localQuaternion, p.localScale).premultiply(archive.matrixWorld);
+    slot.decompose(p.destination, p.destinationQuaternion, p.destinationScale);
+    p.elapsed = 0; p.phase = 'closing'; requestFrame();
+  }
+  function updateProjectPresentation(dt) {
+    const p = projectPresentation; if (p.phase === 'hold') return;
+    p.elapsed += dt; const progress = clamp(p.elapsed / (p.phase === 'opening' ? .65 : .5)), t = ease(progress);
+    p.card.position.lerpVectors(p.source, p.destination, t);
+    p.card.quaternion.slerpQuaternions(p.sourceQuaternion, p.destinationQuaternion, t);
+    p.card.scale.lerpVectors(p.sourceScale, p.destinationScale, t);
+    p.face.material.opacity = p.phase === 'opening' ? 1 - clamp((progress - .8) / .2) : clamp(progress / .25);
+    if (p.phase === 'opening' && progress >= .85 && !p.announced) { p.announced = true; emit('spatial-project-ready'); }
+    if (progress === 1) { if (p.phase === 'closing') restoreProjectPresentation(); else p.phase = 'hold'; }
+  }
+  let queryCodeSignature = '';
   function updateQuery() {
-    const t = reduced.matches ? 3.2 : (clock - queryStarted) % 5.2;
-    queryPaths.forEach(({ outbound, inbound, particle, duration }, index) => {
-      let progress;
-      if (t < .7) { progress = ease(clamp(t / .7)); particle.position.copy(outbound.getPoint(progress)); particle.visible = t > .03; }
-      else if (t < .7 + duration) { particle.position.copy(outbound.getPoint(1)); particle.visible = false; }
-      else if (t < 1.4 + duration) { progress = ease(clamp((t - .7 - duration) / .7)); particle.position.copy(inbound.getPoint(progress)); particle.visible = true; }
-      else particle.visible = false;
-      queryNodes[index + 1].box.material = t >= .7 && t < .7 + duration ? lightGreen : white;
+    const elapsed = clock - queryStarted;
+    const t = reduced.matches ? 5 : paused && manualQueryUntil > queryStarted && clock >= manualQueryUntil ? Math.min(elapsed, queryCycle - .01) : elapsed % queryCycle;
+    queryBoards.forEach(board => {
+      board.rows.forEach(row => {
+        const elapsed = t - .6 - row.start, progress = clamp(elapsed / row.duration);
+        const state = elapsed < 0 ? 0 : progress < 1 ? 1 : 2;
+        row.progress = progress; row.state = state;
+        row.fill.visible = progress > 0; row.fill.scale.x = Math.max(.001, progress);
+        row.fill.position.x = -.995 + 2.03 * progress / 2;
+        row.fill.material.color.set(state === 2 ? '#277967' : '#b79362');
+        row.head.visible = state === 1; row.head.position.x = -.995 + 2.03 * progress;
+        row.status.material.map = statusMaps[state];
+      });
+      board.done = board.rows.every(row => row.state === 2);
+      board.result.material.map = resultMaps[board.done ? 1 : 0];
     });
-    queryNodes[4].group.scale.setScalar(t >= 3.05 && t < 4.35 ? 1.06 : 1);
+    const serialTask = queryBoards[0].rows.findIndex(row => row.state === 1);
+    const parallelTask = queryBoards[1].rows.findIndex(row => row.state !== 2);
+    const serialLine = t < .6 ? 0 : serialTask < 0 ? 4 : serialTask + 1;
+    const parallelLine = t < .6 ? 2 + Math.min(2, Math.floor(t / .2)) : parallelTask < 0 ? 5 : parallelTask + 6;
+    const signature = `${serialLine}:${parallelLine}:${queryPaths.map(row => row.state).join('')}`;
+    if (signature !== queryCodeSignature) {
+      queryCodeSignature = signature;
+      emit('spatial-query-step', { serialLine, parallelLine, submitting: t < .6, serialStates: queryBoards[0].rows.map(row => row.state), parallelStates: queryBoards[1].rows.map(row => row.state) });
+    }
   }
   function render(dt) {
     transition = reduced.matches ? 1 : Math.min(1, transition + dt / .7);
@@ -377,10 +479,10 @@ function initScene(renderer) {
       group.visible = index === chapter;
       if (group.visible) {
         group.position.y = (1 - t) * -.18;
-        group.scale.setScalar((mobile && (index === 1 || index === 3) ? .82 : 1) * (.98 + .02 * t));
+        group.scale.setScalar((mobile && (index === 1 || index === 3 || index === 4) ? .82 : 1) * (.98 + .02 * t));
       }
     });
-    pointer.lerp(pointerTarget, 1 - Math.exp(-dt * 4));
+    if (!modal) pointer.lerp(pointerTarget, 1 - Math.exp(-dt * 4));
     main.rotation.x = reduced.matches ? 0 : pointer.y * .035;
     main.rotation.y = reduced.matches ? 0 : pointer.x * .07;
     if (chapter === 0) { cover.position.y = Math.sin(clock * .6) * .085; cover.rotation.y = -.38 + Math.sin(clock * .2) * .08 + scrollProgress * .22; orbit.position.set(Math.cos(clock * .3) * 3.1, -.4 + Math.sin(clock * .3) * 1.05, Math.sin(clock * .3) * 2.8); }
@@ -389,26 +491,27 @@ function initScene(renderer) {
     if (chapter === 3) careerMarkers.forEach(({ group }, i) => { group.position.z = THREE.MathUtils.lerp(group.position.z, i === selectedCareer ? .4 : 0, 1 - Math.exp(-dt * 7)); });
     if (chapter === 4) updateQuery();
     if (chapter === 5) { letter.position.y = Math.sin(clock * .5) * .07; letterPaper.position.y = .9 + Math.sin(clock * .35) * .12; }
+    if (projectPresentation) updateProjectPresentation(dt);
     updateLabels();
     if (transition < 1) { drawScene(liveTarget); drawBlend(null, t); }
     else drawScene(null);
     lastBlend = t;
-    caption.style.opacity = String(t);
+    caption.style.opacity = projectPresentation ? '0' : String(t);
   }
   function tick(now) {
     frame = 0;
-    if (document.hidden || modal || lost) { lastTime = 0; return; }
+    if (document.hidden || (modal && !projectPresentation) || lost) { lastTime = 0; return; }
     const dt = lastTime ? Math.min((now - lastTime) / 1000, .05) : 1 / 60; lastTime = now;
     // Pausing ambient motion still permits chapter transitions and a user-triggered transfer.
-    if (!paused || skillTransfer || clock < manualQueryUntil) clock += dt;
+    if (!modal && (!paused || skillTransfer || clock < manualQueryUntil)) clock += dt;
     render(dt); interactionFrames = Math.max(0, interactionFrames - 1);
-    if (!paused || transition < 1 || skillTransfer || interactionFrames || clock < manualQueryUntil) frame = requestAnimationFrame(tick);
+    if (modal ? projectPresentation && projectPresentation.phase !== 'hold' : !paused || transition < 1 || skillTransfer || interactionFrames || clock < manualQueryUntil) requestFrame();
     else lastTime = 0;
   }
-  function requestFrame() { if (!frame && !document.hidden && !modal && !lost) frame = requestAnimationFrame(tick); }
+  function requestFrame() { if (!preparing && !frame && !document.hidden && (!modal || projectPresentation) && !lost) frame = requestAnimationFrame(tick); }
   function setChapter(index) {
     if (chapter === index) { requestFrame(); return; }
-    if (!lost && !reduced.matches) captureDisplay();
+    if (!preparing && !lost && !reduced.matches) captureDisplay();
     labelOpacityFrom = labelOpacity;
     previousChapter = chapter; chapter = index; transition = reduced.matches ? 1 : 0;
     lastBlend = reduced.matches ? 1 : 0;
@@ -421,11 +524,13 @@ function initScene(renderer) {
   document.addEventListener('spatial-select-skill', e => transferSkill(e.detail.index));
   document.addEventListener('spatial-description-complete', e => { if (e.detail.index === selectedSkill && !skillTransfer) skillReturnAt = clock + 10; });
   document.addEventListener('spatial-select-project', e => { selectedProject = e.detail.index; interactionFrames = 45; requestFrame(); });
+  document.addEventListener('spatial-project-open', e => openProjectPresentation(e.detail.index));
+  document.addEventListener('spatial-project-close', () => closeProjectPresentation());
   document.addEventListener('spatial-filter-projects', e => { projectIndices = e.detail.indices; requestFrame(); });
   document.addEventListener('spatial-select-career', e => { selectedCareer = e.detail.index; interactionFrames = 30; requestFrame(); });
-  document.addEventListener('spatial-replay-query', () => { queryStarted = clock; manualQueryUntil = reduced.matches ? 0 : clock + 5.2; requestFrame(); });
+  document.addEventListener('spatial-replay-query', () => { queryStarted = clock; manualQueryUntil = reduced.matches ? 0 : clock + queryCycle; requestFrame(); });
   document.addEventListener('spatial-pause', e => { paused = e.detail; requestFrame(); });
-  document.addEventListener('spatial-modal', e => { modal = e.detail; if (modal) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; } else requestFrame(); });
+  document.addEventListener('spatial-modal', e => { modal = e.detail; if (modal) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; } else { restoreProjectPresentation(false); requestFrame(); } });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; } else requestFrame(); });
   document.addEventListener('pointermove', e => { const r = scene.userData.region; pointerTarget.set(clamp((e.clientX - r.x) / r.w) * 2 - 1, 1 - clamp((e.clientY - r.y) / r.h) * 2); if (!paused) requestFrame(); }, { passive: true });
   document.addEventListener('click', e => {
@@ -442,10 +547,10 @@ function initScene(renderer) {
         if (item) { selectedCareer = item.userData.careerIndex; document.querySelectorAll('.career-item')[selectedCareer].scrollIntoView({ behavior: reduced.matches ? 'instant' : 'smooth', block: 'center' }); }
       }
     }
-    if (chapter === 4 && raycaster.intersectObject(query, true).length) { queryStarted = clock; manualQueryUntil = reduced.matches ? 0 : clock + 5.2; requestFrame(); }
+    if (chapter === 4 && raycaster.intersectObject(query, true).length) { queryStarted = clock; manualQueryUntil = reduced.matches ? 0 : clock + queryCycle; requestFrame(); }
     if (chapter === 5 && raycaster.intersectObject(letter, true).length) window.location.href = 'mailto:68449317@qq.com';
   });
-  canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); lost = true; cancelAnimationFrame(frame); frame = 0; labels.hidden = true; emit('spatial-renderer-fallback'); });
+  canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); lost = true; cancelAnimationFrame(frame); frame = 0; restoreProjectPresentation(); labels.hidden = true; emit('spatial-renderer-fallback'); });
   canvas.addEventListener('webglcontextrestored', () => { lost = false; labels.hidden = false; document.body.classList.remove('no-webgl'); window.HYTEX_SCENE_READY = true; resize(); });
   window.addEventListener('resize', resize);
   window.addEventListener('pagehide', event => {
@@ -456,7 +561,16 @@ function initScene(renderer) {
   });
   window.addEventListener('pageshow', () => requestFrame());
   // Expose renderer statistics for local verification, without adding implementation details to the page.
-  window.HYTEX_SCENE = { renderer, scene, camera, groups, skillObjects, projectCards, queryPaths, get chapter() { return chapter; }, get transfer() { return skillTransfer; }, get fade() { return { progress: transition, mix: lastBlend, labelOpacity }; } };
-  window.HYTEX_SCENE_READY = true;
-  resize(); render(1); requestFrame();
+  window.HYTEX_SCENE = { renderer, scene, camera, groups, skillObjects, projectCards, queryPaths, get queryTime() { return { clock, queryStarted, modal, frame }; }, get presentation() { return projectPresentation; }, get chapter() { return chapter; }, get transfer() { return skillTransfer; }, get fade() { return { progress: transition, mix: lastBlend, labelOpacity }; } };
+  // Upload every chapter's textures and compile the offscreen materials before
+  // enabling navigation-driven fades; the first switch uses complete imagery.
+  resources.forEach(resource => { if (resource.isTexture) renderer.initTexture(resource); });
+  renderer.setRenderTarget(liveTarget);
+  await renderer.compileAsync(scene, camera);
+  await renderer.compileAsync(blendScene, blendCamera);
+  renderer.setRenderTarget(null);
+  preparing = false;
+  selectedSkill = window.HYTEX_SPATIAL.state.skill; selectedProject = window.HYTEX_SPATIAL.state.project;
+  window.HYTEX_SCENE_READY = !lost;
+  if (!lost) { resize(); render(1); requestFrame(); }
 }
