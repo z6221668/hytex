@@ -50,3 +50,32 @@
 .query-code-demo code{counter-reset:code-line}.query-code-demo code>span:before{counter-increment:code-line;content:counter(code-line)}.code-keyword{font-weight:500;color:#986b43}
 
 body.scene-hoverable:not(.dialog-open){cursor:pointer}
+.career-item{border-left:3px solid transparent;padding:25px 18px;cursor:pointer;transition:background .25s,border-color .25s}
+.career-item.selected{border-left-color:var(--career-accent);background:color-mix(in srgb,var(--career-accent) 8%,transparent)}
+.career-heading{display:flex;align-items:center;gap:11px}.career-heading p{font-size:11px;letter-spacing:.5px;color:var(--muted)}
+.career-number{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border:1px solid color-mix(in srgb,var(--career-accent) 45%,transparent);border-radius:50%;font-size:10px;color:var(--career-accent);flex-shrink:0}
+.career-item.selected .career-number{background:var(--career-accent);border-color:var(--career-accent);color:#fff}
+.career-item .role{color:var(--career-accent)}.career-tags{display:flex;gap:8px 13px;flex-wrap:wrap;margin-top:14px;font-size:10px;color:var(--career-accent)}
+.career-link{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;opacity:0;overflow:visible}.career-link path{fill:none;stroke:currentColor;stroke-width:1.2;stroke-dasharray:3 5;stroke-opacity:.7}.career-link circle{fill:currentColor}
+@media(max-width:1050px){.career-link{display:none}}@media(max-width:700px){.career-item{padding:23px 13px}.career-tags{gap:7px 12px}}@media print{.career-link{display:none}.career-item{background:none!important;border-left:0;padding-inline:0}}
+/* The photo chapter uses original image proportions and a quiet gallery layout. */
+[hidden]{display:none!important}
+.chapter.hobbies{display:block;pointer-events:auto;padding:140px 9% 70px;min-height:100svh;background:var(--paper)}
+.hobbies-heading{margin-bottom:38px}.hobbies-heading .section-lead{margin-top:15px}
+.hobby-grid{display:block}.hobby-photos{columns:2;column-gap:28px}.hobby-photo{break-inside:avoid;margin:0 0 30px}
+.photo-open{display:block;width:100%;padding:0;overflow:hidden;aspect-ratio:4/3;background:#ebe9df;border-radius:2px}.photo-open img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .35s}.photo-open:hover img{transform:scale(1.025)}
+.hobby-photo figcaption{display:flex;gap:12px;align-items:baseline;padding-top:12px;font-size:12px;color:var(--muted)}.hobby-photo figcaption>span{font-size:9px;color:var(--warm)}.hobby-photo figcaption p{margin:0}
+.hobby-photos.single-photo{columns:1;max-width:950px}.media-open{overflow:hidden}
+#photo-dialog{width:min(1100px,calc(100% - 32px));max-height:92dvh;border:1px solid #c9d1bf;border-radius:3px;background:var(--paper);padding:48px 18px 18px;color:var(--ink)}#photo-dialog::backdrop{background:#20372b90;opacity:0;transition:opacity .45s}#photo-dialog.photo-revealed::backdrop{opacity:1}#photo-original{display:block;max-width:100%;max-height:calc(92dvh - 110px);margin:auto;object-fit:contain}#photo-caption{text-align:center;font-size:13px;color:var(--muted);margin-top:14px}#photo-caption:empty{display:none}
+body[data-chapter="6"] .scene-caption{display:none}
+@media(max-width:700px){.chapter.hobbies{padding:115px 24px 65px}.hobbies-heading{margin-bottom:28px}.hobby-photos{columns:1}.hobby-photo{margin-bottom:24px}.hobbies .closing{margin-top:45px}}
+@media print{.chapter.hobbies{padding:25px 0}.hobby-photos{columns:2}.photo-open{display:block!important}#photo-dialog{display:none}}
+
+/* A photograph lifts out of the album before its viewing frame appears. */
+#photo-dialog{overflow:visible;background:transparent;border-color:transparent;transition:background .35s .18s,border-color .35s .18s}
+#photo-dialog.photo-revealed{background:var(--paper);border-color:#c9d1bf}
+#photo-original{width:auto;height:auto;transform-origin:center;position:relative;z-index:1}
+#photo-dialog .dialog-close,#photo-caption{opacity:0;transition:opacity .22s}
+#photo-dialog.photo-revealed .dialog-close,#photo-dialog.photo-revealed #photo-caption{opacity:1;transition-delay:.45s}
+.photo-open.photo-lifted img{opacity:0}
+@media(prefers-reduced-motion:reduce){#photo-dialog,#photo-dialog::backdrop,#photo-dialog .dialog-close,#photo-caption{transition:none}}

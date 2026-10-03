@@ -19,11 +19,11 @@ async function initScene(renderer) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, 1, .1, 100);
   const main = new THREE.Group(); scene.add(main);
-  const groups = Array.from({ length: 6 }, () => { const group = new THREE.Group(); main.add(group); return group; });
+  const groups = Array.from({ length: 7 }, () => { const group = new THREE.Group(); main.add(group); return group; });
   const white = new THREE.MeshStandardMaterial({ color: '#eeeee0', roughness: .52, metalness: .05 });
-  const green = new THREE.MeshStandardMaterial({ color: '#245c4e', roughness: .44, metalness: .16 });
+  const green = new THREE.MeshStandardMaterial({ color: '#176e67', roughness: .44, metalness: .16 });
   const lightGreen = new THREE.MeshStandardMaterial({ color: '#a2bca7', roughness: .66, metalness: .04 });
-  const gold = new THREE.MeshStandardMaterial({ color: '#b79362', roughness: .53, metalness: .18 });
+  const gold = new THREE.MeshStandardMaterial({ color: '#d29a48', roughness: .53, metalness: .18 });
   const lineMaterial = new THREE.LineBasicMaterial({ color: '#c3cbb9', transparent: true, opacity: .62 });
   scene.add(new THREE.HemisphereLight('#ffffff', '#b4b4a0', 2.7));
   const light = new THREE.DirectionalLight('#fff4de', 3.3); light.position.set(-4, 7, 9); scene.add(light);
@@ -168,7 +168,7 @@ async function initScene(renderer) {
 
   // Every skill is a GPU point cloud. A staggered shader transfer gathers the same points.
   const skillHomes = [ [1.9, 1.3, 0], [-.75, .45, .5], [-1.9, 1.9, -.1], [-2, -.9, .3], [.5, -1.55, .5], [2.1, -.55, -.2], [.1, 2.35, -.5], [-2.4, .6, -.6], [1.4, 2.8, -.9], [-1.2, -2.2, -.5], [2, -2.1, -.8] ];
-  const skillPalette = { lime: '#a4814c', green: '#3c836a', warm: '#9b815a', rose: '#b47b65', blue: '#58898c', neutral: '#7c917b' };
+  const skillPalette = { lime: '#ba8b3d', green: '#268e78', warm: '#bc9451', rose: '#c67b60', blue: '#578eb9', neutral: '#7c917b' };
   const pointFragment = `uniform vec3 uColor; uniform float uAlpha; varying float vDepth;
     void main(){ float d=length(gl_PointCoord-.5)*2.; if(d>1.)discard;
       float soft=1.-smoothstep(.45,1.,d); gl_FragColor=vec4(uColor,uAlpha*soft*vDepth);
@@ -272,24 +272,56 @@ async function initScene(renderer) {
     return { card, sheet, face };
   });
 
-  // Four milestones form a vertical path; real company names stay in the reading column.
-  const career = new THREE.Group(); groups[3].add(career); career.rotation.set(0, -.14, -.035);
+  // Each company has the same number and accent in the reading list and scene.
+  const career = new THREE.Group(); groups[3].add(career); career.rotation.set(0, -.08, -.018);
   career.name = 'career';
-  stroke([[0, -3, -.35], [0, 3, -.35]], career);
+  stroke([[-2.45, -3, -.35], [-2.45, 3, -.35]], career);
   const careerMarkers = data.experience.map((job, index) => {
-    const y = 2.2 - index * 1.5, group = new THREE.Group(); group.userData.careerIndex = index; group.position.set(index % 2 ? .7 : -.7, y, 0); career.add(group);
-    const sheet = mesh(roundedGeometry(2.35, .95, .1, .08), index === 0 ? green : white, group);
-    writing(group, 2.15, .72, (p, w, h) => { p.fillStyle = index === 0 ? '#f8f7ed' : '#3f6554'; p.font = '140px Archivo'; p.fillText(job.period.slice(0, 4), 65, h * .5); p.font = '36px Archivo'; p.fillText(job.role, 65, h * .83); }, [0, 0, .085]);
-    stroke([[group.position.x > 0 ? -1.15 : 1.15, 0, -.1], [-group.position.x, 0, -.3]], group);
-    const marker = mesh(new THREE.SphereGeometry(.085, 12, 8), index === 0 ? gold : lightGreen, career, [0, y, -.25]);
-    return { group, sheet, marker, homeX: group.position.x, homeY: y };
+    const y = 2.3 - index * 1.53, group = new THREE.Group(); group.userData.careerIndex = index;
+    group.position.set(index % 2 ? .15 : -.15, y, 0); career.add(group);
+    const tint = new THREE.Color(job.accent).lerp(new THREE.Color('#ffffff'), .84);
+    const material = new THREE.MeshStandardMaterial({ color: tint, roughness: .5, metalness: .04 }); resources.add(material);
+    const sheet = mesh(roundedGeometry(3.45, 1.30, .10, .07), material, group);
+    const maps = [false, true].map(active => texture((p, w, h) => {
+      p.fillStyle = active ? job.accent : '#f4f5ed'; p.fillRect(0, 0, w, h);
+      p.fillStyle = active ? '#fff9ed' : job.accent; p.font = '145px Archivo'; p.fillText(job.period.slice(0, 4), 55, h * .40);
+      p.textAlign = 'right'; p.font = '58px Archivo'; p.globalAlpha = .65; p.fillText(String(index + 1).padStart(2, '0'), w - 55, h * .24); p.globalAlpha = 1; p.textAlign = 'left';
+      p.font = '52px Archivo, sans-serif'; p.fillText(job.shortCompany, 55, h * .65);
+      p.font = '29px Archivo, sans-serif'; p.globalAlpha = .78; p.fillText(job.tags.join('  /  '), 55, h * .88);
+    }, 1024, 382));
+    const faceMaterial = new THREE.MeshBasicMaterial({ map: maps[index === 0 ? 1 : 0] }); resources.add(faceMaterial);
+    const face = mesh(new THREE.PlaneGeometry(3.35, 1.25), faceMaterial, group, [0, 0, .08]);
+    const accentMaterial = new THREE.MeshBasicMaterial({ color: job.accent }); resources.add(accentMaterial);
+    mesh(new THREE.PlaneGeometry(.055, 1.25), accentMaterial, group, [-1.70, 0, .08]);
+    stroke([[-1.73, 0, -.1], [-2.45 - group.position.x, 0, -.3]], group);
+    const marker = mesh(new THREE.SphereGeometry(.10, 12, 8), accentMaterial, career, [-2.45, y, -.25]);
+    return { group, sheet, face, maps, marker, homeX: group.position.x, homeY: y };
   });
+  const careerCursorMaterial = new THREE.LineBasicMaterial({ color: data.experience[0].accent, transparent: true, opacity: .9 }); resources.add(careerCursorMaterial);
+  const careerCursor = circle(.22, career, [-2.45, 2.3, .12], careerCursorMaterial);
+  const careerLink = document.querySelector('#career-link');
+  function updateCareerLink() {
+    const row = document.querySelectorAll('.career-item')[selectedCareer];
+    const heading = row?.querySelector('.career-heading').getBoundingClientRect();
+    const visible = chapter === 3 && width > 1050 && !modal && heading && heading.top > 100 && heading.bottom < height - 40;
+    careerLink.style.opacity = visible ? String(sceneEase(transition)) : '0';
+    if (!visible) return;
+    const card = careerMarkers[selectedCareer].group;
+    card.updateWorldMatrix(true, false); world.set(-1.74, 0, .09); card.localToWorld(world); projected.copy(world).project(camera);
+    const r = scene.userData.region, x1 = row.getBoundingClientRect().right + 12, y1 = heading.top + heading.height / 2;
+    const x2 = r.x + (projected.x + 1) * r.w / 2 - 5, y2 = r.y + (1 - projected.y) * r.h / 2;
+    const bend = Math.max(35, (x2 - x1) * .5);
+    careerLink.style.color = data.experience[selectedCareer].accent;
+    careerLink.querySelector('path').setAttribute('d', `M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}`);
+    careerLink.querySelectorAll('circle').forEach((dot, i) => { dot.setAttribute('cx', i ? x2 : x1); dot.setAttribute('cy', i ? y2 : y1); });
+  }
 
   // Both boards use the same task durations; only their start times differ.
   const query = new THREE.Group(); groups[4].add(query);
   query.name = 'query';
   const queryPaths = [], queryBoards = [], queryCycle = 6.2;
   const queryNames = ['用户资料', '订单列表', '账户信息'];
+  const queryColors = ['#249582', '#5688c7', '#d57b58'];
   function queryText(text, color = '#496758') {
     return texture((p, w, h) => { p.fillStyle = color; p.font = '88px Archivo, sans-serif'; p.textAlign = 'center'; p.textBaseline = 'middle'; p.fillText(text, w / 2, h / 2); }, 512, 128);
   }
@@ -297,7 +329,10 @@ async function initScene(renderer) {
   const resultMaps = [queryText('等待结果', '#839083'), queryText('汇总返回  ✓', '#277967')];
   ['逐个查询', '同时查询'].forEach((name, mode) => {
     const board = new THREE.Group(); board.position.y = mode === 0 ? 1.62 : -1.62; query.add(board);
-    mesh(roundedGeometry(5.3, 2.9, .075, .09), white, board);
+    const boardMaterial = new THREE.MeshStandardMaterial({ color: mode ? '#c5e6db' : '#f0ddbc', roughness: .55, metalness: .02 }); resources.add(boardMaterial);
+    mesh(roundedGeometry(5.3, 2.9, .075, .09), boardMaterial, board);
+    const accentMaterial = new THREE.MeshBasicMaterial({ color: mode ? '#238f7e' : '#bd8841' }); resources.add(accentMaterial);
+    mesh(new THREE.PlaneGeometry(5.10, .045), accentMaterial, board, [0, 1.40, .073]);
     writing(board, 4.85, .45, (p, w, h) => {
       p.fillStyle = mode ? '#277967' : '#4d6156'; p.font = '64px Archivo, sans-serif'; p.fillText(name, 10, h * .72);
       p.fillStyle = '#9d8156'; p.font = '30px Archivo, sans-serif'; p.textAlign = 'right'; p.fillText(mode ? 'parallel_query' : '完成一项，再开始下一项', w - 10, h * .65);
@@ -305,11 +340,14 @@ async function initScene(renderer) {
     const rows = queryNames.map((label, index) => {
       const y = .45 - index * .57;
       writing(board, 1.3, .33, (p, w, h) => { p.fillStyle = '#496758'; p.font = '155px Archivo, sans-serif'; p.textBaseline = 'middle'; p.fillText(label, 8, h / 2); }, [-1.75, y, .08]);
-      mesh(roundedGeometry(2.03, .10, .015, .04), lightGreen, board, [.02, y, .085]);
-      const fillMaterial = new THREE.MeshBasicMaterial({ color: '#b79362' }); resources.add(fillMaterial);
-      const fill = mesh(new THREE.PlaneGeometry(2.03, .10), fillMaterial, board, [.02, y, .13]);
-      const head = mesh(new THREE.SphereGeometry(.075, 12, 8), gold, board, [-.99, y, .16]);
-      const signal = mesh(new THREE.SphereGeometry(.05, 10, 8), green, board); signal.visible = false;
+      const trackMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(queryColors[index]).lerp(new THREE.Color('#ffffff'), .78) }); resources.add(trackMaterial);
+      mesh(roundedGeometry(2.03, .13, .015, .04), trackMaterial, board, [.02, y, .085]);
+      const taskMaterial = new THREE.MeshBasicMaterial({ color: queryColors[index] }); resources.add(taskMaterial);
+      mesh(new THREE.CircleGeometry(.055, 16), taskMaterial, board, [-2.46, y, .1]);
+      const fillMaterial = new THREE.MeshBasicMaterial({ color: queryColors[index] }); resources.add(fillMaterial);
+      const fill = mesh(new THREE.PlaneGeometry(2.03, .13), fillMaterial, board, [.02, y, .13]);
+      const head = mesh(new THREE.SphereGeometry(.085, 12, 8), taskMaterial, board, [-.99, y, .16]);
+      const signal = mesh(new THREE.SphereGeometry(.065, 10, 8), taskMaterial, board); signal.visible = false;
       const statusMaterial = new THREE.MeshBasicMaterial({ map: statusMaps[0], transparent: true, depthWrite: false }); resources.add(statusMaterial);
       const status = mesh(new THREE.PlaneGeometry(1.12, .28), statusMaterial, board, [1.84, y, .10]);
       const row = { fill, head, signal, status, y, duration: [1.24, 1.52, 1.24][index], start: mode ? 0 : [0, 1.24, 2.76][index], progress: 0, state: 0 };
@@ -455,15 +493,21 @@ async function initScene(renderer) {
       springTo(archive.rotation, 'x', -.12 + pointer.y * .045 + drift(.8, .018), dt, 7);
       springTo(archive.rotation, 'y', -.16 + pointer.x * .055, dt, 7);
     }
-    if (chapter === 3) careerMarkers.forEach(({ group, marker, homeX, homeY }, index) => {
+    if (chapter === 3) careerMarkers.forEach(({ group, face, maps, marker, homeX, homeY }, index) => {
       const selected = index === selectedCareer, over = hovered.career === index;
-      springTo(group.position, 'x', homeX + drift(index * 2, .035), dt, 8);
+      face.material.map = maps[selected ? 1 : 0];
+      springTo(group.position, 'x', (selected ? homeX - .18 : homeX + .08) + drift(index * 2, .035), dt, 9);
       springTo(group.position, 'y', homeY + drift(index * 2 + 1, .05), dt, 8);
-      springTo(group.position, 'z', (selected ? .4 : 0) + (over ? .18 : 0), dt);
-      springTo(group.rotation, 'y', selected || over ? .10 + pointer.x * .03 : drift(index, .025), dt);
-      springTo(group.rotation, 'z', drift(index * 1.9, .02), dt, 8);
+      springTo(group.position, 'z', (selected ? .8 : -.14) + (over ? .16 : 0), dt);
+      springTo(group.rotation, 'y', selected || over ? .12 + pointer.x * .03 : -.035 + drift(index, .025), dt);
+      springTo(group.rotation, 'z', (selected ? -.025 : .025) + drift(index * 1.9, .018), dt, 8);
+      springTo(group.scale, 'x', selected ? 1.055 : .97, dt, 10); group.scale.y = group.scale.z = group.scale.x;
       springTo(marker.scale, 'x', selected ? 1.35 + drift(index, .10) : 1, dt); marker.scale.y = marker.scale.z = marker.scale.x;
     });
+    if (chapter === 3) {
+      careerCursorMaterial.color.set(data.experience[selectedCareer].accent);
+      springTo(careerCursor.position, 'y', careerMarkers[selectedCareer].homeY, dt, 11, .78);
+    }
     if (chapter === 4) queryBoards.forEach(({ board, done, result }, index) => {
       springTo(board.position, 'x', drift(index * 2, .025), dt, 7);
       springTo(board.position, 'z', done ? .12 : 0, dt, 8);
@@ -547,13 +591,13 @@ async function initScene(renderer) {
     const elapsed = clock - queryStarted;
     const t = reduced.matches ? 5 : paused && manualQueryUntil > queryStarted && clock >= manualQueryUntil ? Math.min(elapsed, queryCycle - .01) : elapsed % queryCycle;
     queryBoards.forEach(board => {
-      board.rows.forEach(row => {
+      board.rows.forEach((row, index) => {
         const elapsed = t - .6 - row.start, progress = clamp(elapsed / row.duration);
         const state = elapsed < 0 ? 0 : progress < 1 ? 1 : 2;
         row.progress = progress; row.state = state;
         row.fill.visible = progress > 0; row.fill.scale.x = Math.max(.001, progress);
         row.fill.position.x = -.995 + 2.03 * progress / 2;
-        row.fill.material.color.set(state === 2 ? '#277967' : '#b79362');
+        row.fill.material.color.set(queryColors[index]);
         row.head.visible = state === 1; row.head.position.x = -.995 + 2.03 * progress;
         row.head.scale.setScalar(reduced.matches ? 1 : 1 + Math.sin(elapsed * 8) * .10);
         const arrival = elapsed - row.duration, travel = clamp(arrival / .52), flight = ease(travel);
@@ -594,7 +638,7 @@ async function initScene(renderer) {
     if (chapter === 4) updateQuery();
     updateSceneMotion(dt);
     if (projectPresentation) updateProjectPresentation(dt);
-    updateLabels();
+    updateLabels(); updateCareerLink();
     if (transition < 1) { drawScene(liveTarget); drawBlend(null, t); }
     else drawScene(null);
     lastBlend = t;
@@ -605,9 +649,9 @@ async function initScene(renderer) {
     if (document.hidden || (modal && !projectPresentation) || lost) { lastTime = 0; return; }
     const dt = lastTime ? Math.min((now - lastTime) / 1000, .05) : 1 / 60; lastTime = now;
     // Pausing ambient motion still permits chapter transitions and a user-triggered transfer.
-    if (!modal && (!paused || skillTransfer || clock < manualQueryUntil)) clock += dt;
+    if (!modal && ((!paused && chapter !== 6) || skillTransfer || clock < manualQueryUntil)) clock += dt;
     render(dt); interactionFrames = Math.max(0, interactionFrames - 1);
-    if (modal ? projectPresentation && projectPresentation.phase !== 'hold' : !paused || transition < 1 || skillTransfer || interactionFrames || clock < manualQueryUntil) requestFrame();
+    if (modal ? projectPresentation && projectPresentation.phase !== 'hold' : (!paused && chapter !== 6) || transition < 1 || skillTransfer || interactionFrames || clock < manualQueryUntil) requestFrame();
     else lastTime = 0;
   }
   function requestFrame() { if (!preparing && !frame && !document.hidden && (!modal || projectPresentation) && !lost) frame = requestAnimationFrame(tick); }
@@ -631,19 +675,19 @@ async function initScene(renderer) {
   document.addEventListener('spatial-project-open', e => openProjectPresentation(e.detail.index));
   document.addEventListener('spatial-project-close', () => closeProjectPresentation());
   document.addEventListener('spatial-filter-projects', e => { projectIndices = e.detail.indices; requestFrame(); });
-  document.addEventListener('spatial-select-career', e => { selectedCareer = e.detail.index; interactionFrames = 30; requestFrame(); });
+  document.addEventListener('spatial-select-career', e => { selectedCareer = e.detail.index; interactionFrames = 60; requestFrame(); });
   document.addEventListener('spatial-replay-query', () => { queryStarted = clock; manualQueryUntil = reduced.matches ? 0 : clock + queryCycle; requestFrame(); });
   document.addEventListener('spatial-pause', e => { paused = e.detail; requestFrame(); });
   document.addEventListener('spatial-modal', e => { modal = e.detail; if (modal) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; } else { restoreProjectPresentation(false); requestFrame(); } });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; } else requestFrame(); });
   document.addEventListener('pointermove', e => {
-    if (modal || e.pointerType === 'touch') return;
+    if (modal || chapter === 6 || e.pointerType === 'touch') return;
     const r = scene.userData.region;
     pointerInside = !e.target.closest('a,button,input,select,dialog') && e.clientX >= r.x && e.clientX <= r.x + r.w && e.clientY >= r.y && e.clientY <= r.y + r.h;
     pointerTarget.set(pointerInside ? (e.clientX - r.x) / r.w * 2 - 1 : 0, pointerInside ? 1 - (e.clientY - r.y) / r.h * 2 : 0);
     hoverDirty = true; interactionFrames = Math.max(interactionFrames, 45); requestFrame();
   }, { passive: true });
-  document.addEventListener('pointerleave', () => { pointerInside = false; pointerTarget.set(0, 0); hoverDirty = true; interactionFrames = Math.max(interactionFrames, 45); requestFrame(); });
+  document.addEventListener('pointerleave', () => { if (chapter === 6) return; pointerInside = false; pointerTarget.set(0, 0); hoverDirty = true; interactionFrames = Math.max(interactionFrames, 45); requestFrame(); });
   document.addEventListener('click', e => {
     if (modal || e.target.closest('a,button,input,select,dialog')) return;
     const r = scene.userData.region;
@@ -655,7 +699,7 @@ async function initScene(renderer) {
     if (chapter === 3) {
       const hit = raycaster.intersectObject(career, true)[0];
       if (hit) { let item = hit.object; while (item && item.userData.careerIndex === undefined) item = item.parent;
-        if (item) { selectedCareer = item.userData.careerIndex; document.querySelectorAll('.career-item')[selectedCareer].scrollIntoView({ behavior: reduced.matches ? 'instant' : 'smooth', block: 'center' }); }
+        if (item) emit('spatial-pick-career', { index: item.userData.careerIndex });
       }
     }
     if (chapter === 4 && raycaster.intersectObject(query, true).length) { queryStarted = clock; manualQueryUntil = reduced.matches ? 0 : clock + queryCycle; requestFrame(); }
@@ -681,7 +725,7 @@ async function initScene(renderer) {
   await renderer.compileAsync(blendScene, blendCamera);
   renderer.setRenderTarget(null);
   preparing = false;
-  selectedSkill = window.HYTEX_SPATIAL.state.skill; selectedProject = window.HYTEX_SPATIAL.state.project;
+  selectedSkill = window.HYTEX_SPATIAL.state.skill; selectedProject = window.HYTEX_SPATIAL.state.project; selectedCareer = window.HYTEX_SPATIAL.state.career;
   window.HYTEX_SCENE_READY = !lost;
   if (!lost) { resize(); render(1); requestFrame(); }
 }

@@ -3,10 +3,79 @@
   const data = window.RESUME;
   const chapters = [...document.querySelectorAll('[data-chapter]')];
   const dialog = document.querySelector('#project-dialog');
-  const state = { chapter: 0, skill: 1, project: 0, filter: 'all', paused: matchMedia('(prefers-reduced-motion: reduce)').matches };
+  const state = { chapter: 0, skill: 1, project: 0, career: 0, filter: 'all', paused: matchMedia('(prefers-reduced-motion: reduce)').matches };
   let opener = null, typingFrame = 0, typingStarted = 0, typingText = '', scrolling = false;
+  let careerScrollTarget = null;
   const dispatch = (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail }));
   const el = (tag, className, value) => { const n = document.createElement(tag); n.className = className; if (value !== undefined) n.textContent = value; return n; };
+  function initHobbyMedia() {
+    const media = window.HYTEX_HOBBIES || {}, section = document.querySelector('#hobbies');
+    const photos = (media.photos || []).filter(photo => photo.src);
+    if (!photos.length) return;
+    section.hidden = false;
+    const nav = el('a', ''); nav.href = '#hobbies'; nav.setAttribute('aria-label', '爱好'); nav.append(el('span', '', '06'), el('i', '')); document.querySelector('.chapter-rail').append(nav);
+    section.append(document.querySelector('.closing'));
+    section.classList.add('photos-only');
+    const gallery = document.querySelector('#hobby-photos'), viewer = document.querySelector('#photo-dialog');
+    let photoOpener, photoAnimation, photoClosing = false, photoVersion = 0;
+    const original = document.querySelector('#photo-original');
+    const reducedPhotoMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function photoOrigin() {
+      const source = photoOpener.getBoundingClientRect(), target = original.getBoundingClientRect();
+      return `translate(${source.left + source.width / 2 - target.left - target.width / 2}px, ${source.top + source.height / 2 - target.top - target.height / 2}px) scale(${source.width / target.width}, ${source.height / target.height})`;
+    }
+    async function closePhoto() {
+      if (!viewer.open || photoClosing) return;
+      photoClosing = true; ++photoVersion;
+      const current = getComputedStyle(original).transform;
+      photoAnimation?.cancel(); viewer.classList.remove('photo-revealed');
+      if (!reducedPhotoMotion()) {
+        photoAnimation = original.animate([{ transform: current }, { transform: photoOrigin() }], { duration: 420, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' });
+        await photoAnimation.finished.catch(() => {});
+      }
+      viewer.close();
+    }
+    photos.forEach((photo, index) => {
+      const figure = el('figure', 'hobby-photo'), button = el('button', 'photo-open'), img = el('img', ''); button.type = 'button';
+      img.src = photo.src; img.alt = photo.alt || photo.caption || `照片 ${String(index + 1).padStart(2, '0')}`; img.loading = 'lazy'; img.decoding = 'async';
+      if (photo.width && photo.height) { img.width = photo.width; img.height = photo.height; button.style.aspectRatio = `${photo.width} / ${photo.height}`; }
+      button.setAttribute('aria-label', `放大查看：${img.alt}`); button.append(img); figure.append(button);
+      const caption = el('figcaption', ''); caption.append(el('span', '', String(index + 1).padStart(2, '0')), el('p', '', photo.caption || '')); figure.append(caption); gallery.append(figure);
+      img.addEventListener('load', () => { button.style.aspectRatio = String(img.naturalWidth / img.naturalHeight); });
+      button.addEventListener('click', async () => {
+        if (viewer.open) return;
+        const version = ++photoVersion;
+        photoOpener = button; photoClosing = false;
+        original.src = photo.src; original.alt = img.alt;
+        original.width = photo.width || img.naturalWidth; original.height = photo.height || img.naturalHeight;
+        await original.decode().catch(() => {});
+        if (version !== photoVersion) return;
+        document.querySelector('#photo-caption').textContent = photo.caption || '';
+        viewer.classList.remove('photo-revealed'); viewer.showModal();
+        document.body.classList.add('media-open'); dispatch('spatial-modal', true);
+        button.classList.add('photo-lifted');
+        if (reducedPhotoMotion()) { viewer.classList.add('photo-revealed'); return; }
+        const origin = photoOrigin(), tilt = index % 2 ? -2 : 2;
+        // The same image travels from its album slot; only transforms animate.
+        photoAnimation = original.animate([
+          { transform: origin },
+          { transform: `translate(0,-18px) rotate(${tilt}deg) scale(1.025)`, offset: .76 },
+          { transform: 'none' }
+        ], { duration: 720, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'both' });
+        viewer.classList.add('photo-revealed');
+        await photoAnimation.finished.catch(() => {});
+        if (version === photoVersion && !photoClosing) { photoAnimation.cancel(); photoAnimation = null; }
+      });
+    });
+    if (!photos.length) gallery.hidden = true;
+    if (photos.length === 1) gallery.classList.add('single-photo');
+    if (photos.length === 2) gallery.classList.add('two-photos');
+    viewer.querySelector('button').addEventListener('click', closePhoto);
+    viewer.addEventListener('cancel', event => { event.preventDefault(); closePhoto(); });
+    viewer.addEventListener('click', event => { if (event.target !== viewer) return; const r = viewer.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) closePhoto(); });
+    viewer.addEventListener('close', () => { ++photoVersion; photoAnimation?.cancel(); photoAnimation = null; photoClosing = false; viewer.classList.remove('photo-revealed'); photoOpener?.classList.remove('photo-lifted'); document.body.classList.remove('media-open'); dispatch('spatial-modal', false); photoOpener?.focus({ preventScroll: true }); });
+  }
+  initHobbyMedia();
   function typeDescription(instant = false) {
     cancelAnimationFrame(typingFrame);
     const paragraph = document.querySelector('#skill-description'), reading = document.querySelector('#skill-reading');
@@ -84,10 +153,26 @@
   document.querySelector('#archive-open').addEventListener('click', event => showProject(state.project, event.currentTarget));
   data.experience.forEach((job, index) => {
     const row = el('article', 'career-item'); row.tabIndex = 0;
-    row.append(el('p', '', job.period), el('h3', '', job.company), el('p', 'role', job.role), el('p', 'description', job.description));
-    row.addEventListener('pointerenter', () => dispatch('spatial-select-career', { index })); row.addEventListener('focus', () => dispatch('spatial-select-career', { index }));
+    row.dataset.careerIndex = index; row.style.setProperty('--career-accent', job.accent);
+    const heading = el('div', 'career-heading'); heading.append(el('span', 'career-number', String(index + 1).padStart(2, '0')), el('p', '', job.period));
+    const tags = el('div', 'career-tags'); tags.append(...job.tags.map(tag => el('span', '', tag)));
+    row.append(heading, el('h3', '', job.company), el('p', 'role', job.role), el('p', 'description', job.description), tags);
+    row.addEventListener('pointerenter', () => selectCareer(index)); row.addEventListener('focus', () => selectCareer(index)); row.addEventListener('click', () => selectCareer(index));
+    row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectCareer(index); } });
     document.querySelector('#career-list').append(row);
   });
+  function selectCareer(index, scroll = false) {
+    state.career = index;
+    document.querySelectorAll('.career-item').forEach((row, i) => { row.classList.toggle('selected', index === i); if (index === i) row.setAttribute('aria-current', 'step'); else row.removeAttribute('aria-current'); });
+    if (state.chapter === 3) document.querySelector('#scene-caption-title').textContent = `${data.experience[index].shortCompany} · ${data.experience[index].period}`;
+    dispatch('spatial-select-career', { index });
+    if (scroll) {
+      careerScrollTarget = { index };
+      document.querySelectorAll('.career-item')[index].scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'center' });
+    }
+  }
+  selectCareer(0);
+  document.addEventListener('spatial-pick-career', event => selectCareer(event.detail.index, true));
   function closeProject() {
     if (dialog.classList.contains('detail-leaving')) return;
     if (dialog.classList.contains('spatial-detail') && window.HYTEX_SCENE_READY) {
@@ -150,12 +235,12 @@
   document.addEventListener('spatial-query-step', event => { queryStep = event.detail; renderQueryCode(); });
   document.addEventListener('spatial-renderer-fallback', () => { document.querySelector('#query-code-status').textContent = 'Java 执行流程示例'; });
   renderQueryCode();
-  const captions = [ ['BACKEND / AI / PRODUCT', 'Java 后端 · AI 应用 · 跨端开发'], ['JAVA / SPRING / DATA', '点击节点查看技术实践'], ['PROJECT ARCHIVE', '项目描述与负责的工作'], ['2018 — 2026', 'Java 后端开发经历'], ['PARALLEL QUERY', '独立查询，同时执行'], ['KEEP IN TOUCH', '68449317@qq.com'] ];
+  const captions = [ ['BACKEND / AI / PRODUCT', 'Java 后端 · AI 应用 · 跨端开发'], ['JAVA / SPRING / DATA', '点击节点查看技术实践'], ['PROJECT ARCHIVE', '项目描述与负责的工作'], ['2018 — 2026', 'Java 后端开发经历'], ['PARALLEL QUERY', '独立查询，同时执行'], ['KEEP IN TOUCH', '68449317@qq.com'], ['', ''] ];
   function updateChapter() {
     scrolling = false;
     const probe = innerWidth <= 700 ? 240 : innerHeight * .45;
     let nearest = 0;
-    chapters.forEach((s, i) => { if (s.getBoundingClientRect().top <= probe) nearest = i; });
+    chapters.forEach((s, i) => { if (!s.hidden && s.getBoundingClientRect().top <= probe) nearest = i; });
     if (nearest !== state.chapter || !document.body.dataset.chapter) {
       state.chapter = nearest; document.body.dataset.chapter = nearest;
       document.querySelectorAll('.chapter-rail a').forEach((a, i) => { a.classList.toggle('active', i === nearest); if (i === nearest) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current'); });
@@ -165,8 +250,27 @@
       dispatch('spatial-chapter', { index: nearest });
     }
     dispatch('spatial-scroll', { progress: Math.min(1, Math.max(0, -chapters[nearest].getBoundingClientRect().top / Math.max(1, chapters[nearest].offsetHeight - innerHeight * .3))) });
+    if (nearest === 3) {
+      const readingPoint = (innerHeight + (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0)) / 2;
+      const visible = [...document.querySelectorAll('.career-item')].map((row, index) => ({ index, rect: row.getBoundingClientRect() })).filter(({ rect }) => rect.bottom > 110 && rect.top < innerHeight * .85);
+      // A card click owns the selection while its company scrolls into view;
+      // intermediate rows must not select themselves during that animation.
+      if (visible.length && !careerScrollTarget) { const closest = visible.reduce((a, b) => Math.abs(a.rect.top + a.rect.height / 2 - readingPoint) < Math.abs(b.rect.top + b.rect.height / 2 - readingPoint) ? a : b); if (closest.index !== state.career) selectCareer(closest.index); }
+      document.querySelector('#scene-caption-title').textContent = `${data.experience[state.career].shortCompany} · ${data.experience[state.career].period}`;
+    }
   }
   window.addEventListener('scroll', () => { if (!scrolling) { scrolling = true; requestAnimationFrame(updateChapter); } }, { passive: true }); window.addEventListener('resize', updateChapter);
+  window.addEventListener('scrollend', () => {
+    if (careerScrollTarget) {
+      const rect = document.querySelectorAll('.career-item')[careerScrollTarget.index].getBoundingClientRect();
+      const padding = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+      if (Math.abs(rect.top + rect.height / 2 - (innerHeight + padding) / 2) > 8) return;
+      careerScrollTarget = null;
+    }
+    updateChapter();
+  });
+  for (const type of ['wheel', 'touchstart']) window.addEventListener(type, () => { careerScrollTarget = null; }, { passive: true });
+  window.addEventListener('keydown', event => { if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) careerScrollTarget = null; });
   document.addEventListener('spatial-pick-skill', e => selectSkill(e.detail.index));
   document.addEventListener('spatial-skill-released', () => { cancelAnimationFrame(typingFrame); document.querySelector('#skill-reading').classList.remove('typing'); document.querySelector('#skill-reading').classList.add('released'); document.querySelector('#skill-description').textContent = '点击技术名称查看说明。'; });
   document.addEventListener('spatial-skill-arrived', e => { if (e.detail.index === state.skill) typeDescription(matchMedia('(prefers-reduced-motion: reduce)').matches); });

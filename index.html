@@ -7,10 +7,11 @@
   <meta name="description" content="HYTEX 的开发经历：Java 后端、Spring 微服务、金融业务与 AI 应用。">
   <title>HYTEX · 开发档案</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./spatial.css?v=5">
+  <link rel="stylesheet" href="./spatial.css?v=8">
   <script src="./resume-data.js" defer></script>
-  <script src="./spatial-app.js?v=4" defer></script>
-  <script src="./spatial-scene.js?v=6" type="module"></script>
+  <script src="./hobbies-data.js" defer></script>
+  <script src="./spatial-app.js?v=7" defer></script>
+  <script src="./spatial-scene.js?v=9" type="module"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳至正文</a>
@@ -30,6 +31,7 @@
     <a href="#opensource" aria-label="开源项目"><span>04</span><i></i></a>
     <a href="#contact" aria-label="联系方式"><span>05</span><i></i></a>
   </aside>
+  <svg id="career-link" class="career-link" aria-hidden="true"><path/><circle r="3"/><circle r="3"/></svg>
   <main id="main">
     <section class="chapter intro" id="intro" data-chapter="0" aria-labelledby="intro-title">
       <div class="chapter-copy">
@@ -100,8 +102,15 @@
         <div class="closing"><span>HYTEX / 开发档案</span><a href="#intro">回到顶部 ↑</a></div>
       </div>
     </section>
+    <section class="chapter hobbies" id="hobbies" data-chapter="6" aria-labelledby="hobbies-title" hidden>
+      <div class="hobbies-heading"><p class="eyebrow">06 / 爱好</p><h2 id="hobbies-title">爱好<span>。</span></h2><p class="section-lead">照片记录。</p></div>
+      <div class="hobby-grid">
+        <div class="hobby-photos" id="hobby-photos" aria-label="照片"></div>
+      </div>
+    </section>
   </main>
   <dialog id="project-dialog" aria-labelledby="dialog-title"><form method="dialog"><button class="dialog-close" aria-label="关闭项目详情">×</button></form><div class="archive-masthead"><span>PROJECT ARCHIVE</span><span id="dialog-number"></span></div><p id="dialog-category" class="eyebrow"></p><h2 id="dialog-title"></h2><p id="dialog-period"></p><h3>项目描述</h3><p id="dialog-summary"></p><div id="dialog-tags"></div><h3>工作内容</h3><ul id="dialog-work"></ul></dialog>
+  <dialog id="photo-dialog" aria-label="查看照片"><button class="dialog-close" type="button" aria-label="关闭照片">×</button><img id="photo-original" alt=""><p id="photo-caption"></p></dialog>
   <noscript><p class="noscript">请启用 JavaScript 浏览完整项目和工作经历。邮箱：68449317@qq.com。</p></noscript>
 </body>
 </html>
