@@ -7,10 +7,12 @@
   <meta name="description" content="HYTEX 的开发经历：Java 后端、Spring 微服务、金融业务与 AI 应用。">
   <title>HYTEX · 开发档案</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./spatial.css?v=8">
+  <link rel="stylesheet" href="./spatial.css?v=17">
   <script src="./resume-data.js" defer></script>
   <script src="./hobbies-data.js" defer></script>
-  <script src="./spatial-app.js?v=7" defer></script>
+  <script src="./project-demo-data.js?v=6" defer></script>
+  <script src="./project-demos.js?v=8" defer></script>
+  <script src="./spatial-app.js?v=8" defer></script>
   <script src="./spatial-scene.js?v=9" type="module"></script>
 </head>
 <body>
@@ -109,7 +111,7 @@
       </div>
     </section>
   </main>
-  <dialog id="project-dialog" aria-labelledby="dialog-title"><form method="dialog"><button class="dialog-close" aria-label="关闭项目详情">×</button></form><div class="archive-masthead"><span>PROJECT ARCHIVE</span><span id="dialog-number"></span></div><p id="dialog-category" class="eyebrow"></p><h2 id="dialog-title"></h2><p id="dialog-period"></p><h3>项目描述</h3><p id="dialog-summary"></p><div id="dialog-tags"></div><h3>工作内容</h3><ul id="dialog-work"></ul></dialog>
+  <dialog id="project-dialog" aria-labelledby="dialog-title"><form method="dialog"><button class="dialog-close" aria-label="关闭项目详情">×</button></form><div class="archive-masthead"><span>PROJECT ARCHIVE</span><span id="dialog-number"></span></div><p id="dialog-category" class="eyebrow"></p><h2 id="dialog-title"></h2><p id="dialog-period"></p><h3>项目描述</h3><p id="dialog-summary"></p><div id="dialog-tags"></div><button type="button" id="demo-jump">查看亮点演示 ↓</button><h3>工作内容</h3><ul id="dialog-work"></ul><section id="project-demo" hidden aria-label="项目亮点演示"></section></dialog>
   <dialog id="photo-dialog" aria-label="查看照片"><button class="dialog-close" type="button" aria-label="关闭照片">×</button><img id="photo-original" alt=""><p id="photo-caption"></p></dialog>
   <noscript><p class="noscript">请启用 JavaScript 浏览完整项目和工作经历。邮箱：68449317@qq.com。</p></noscript>
 </body>

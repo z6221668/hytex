@@ -125,6 +125,7 @@
     for (const [id, value] of Object.entries({ 'dialog-number': p.number, 'dialog-category': p.label, 'dialog-title': p.title, 'dialog-period': p.period, 'dialog-summary': p.summary })) document.getElementById(id).textContent = value;
     document.querySelector('#dialog-tags').replaceChildren(...p.tags.map(t => el('span', '', t)));
     document.querySelector('#dialog-work').replaceChildren(...p.details.map(t => el('li', '', t)));
+    window.HYTEX_DEMOS.mount(index);
     dialog.classList.remove('detail-ready', 'detail-leaving');
     const spatial = window.HYTEX_SCENE_READY && !matchMedia('(prefers-reduced-motion: reduce)').matches;
     dialog.classList.toggle('spatial-detail', Boolean(spatial));
@@ -175,6 +176,7 @@
   document.addEventListener('spatial-pick-career', event => selectCareer(event.detail.index, true));
   function closeProject() {
     if (dialog.classList.contains('detail-leaving')) return;
+    window.HYTEX_DEMOS.stop();
     if (dialog.classList.contains('spatial-detail') && window.HYTEX_SCENE_READY) {
       dialog.classList.add('detail-leaving'); dispatch('spatial-project-close');
     } else { dialog.close(); finishProjectClose(); }
@@ -184,6 +186,7 @@
   document.addEventListener('spatial-project-ready', () => dialog.classList.add('detail-ready'));
   function finishProjectClose() {
     if (dialog.open || !document.body.classList.contains('dialog-open')) return;
+    window.HYTEX_DEMOS.stop();
     dialog.classList.remove('spatial-detail', 'detail-ready', 'detail-leaving'); document.body.classList.remove('dialog-open');
     dispatch('spatial-modal', false); if (opener?.isConnected) opener.focus({ preventScroll: true });
   }
