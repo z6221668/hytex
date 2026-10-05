@@ -1,5 +1,5 @@
 import * as THREE from './assets/vendor/three.module.js';
-import { createExhibition } from './interactive-scene.js?v=3';
+import { createExhibition } from './interactive-scene.js?v=5';
 
 const data = window.RESUME;
 const canvas = document.querySelector('#resume-scene');
@@ -663,14 +663,18 @@ async function initScene(renderer) {
   function requestFrame() { if (!preparing && !frame && !document.hidden && (!modal || projectPresentation) && !lost) frame = requestAnimationFrame(tick); }
   function setChapter(index) {
     if (chapter === index) { requestFrame(); return; }
-    if (!preparing && !lost && !reduced.matches) captureDisplay();
-    labelOpacityFrom = labelOpacity;
+    if (!preparing && !lost) {
+      if(mobile){outputTo(fromTarget);outputTo(null);}
+      else if(!reduced.matches)captureDisplay();
+    }
+    labelOpacityFrom = mobile ? 0 : labelOpacity;
     previousChapter = chapter; chapter = index; transition = reduced.matches ? 1 : 0;
     chapterAge = 0; hoverDirty = true; interactionFrames = Math.max(interactionFrames, 90);
     if (chapter === 5 && !reduced.matches) { letterFlap.rotation.x = 0; letterPaper.position.y = .35; springVelocities.delete(letterFlap.rotation); springVelocities.delete(letterPaper.position); }
     lastBlend = reduced.matches ? 1 : 0;
     if (chapter === 4) queryStarted = clock;
     if (previousChapter === 1 && skillTransfer) finishSkill();
+    if(mobile&&!preparing&&!lost)render(0);
     requestFrame();
   }
   document.addEventListener('spatial-interactive-mode', e => {

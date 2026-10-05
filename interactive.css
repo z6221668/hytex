@@ -89,3 +89,24 @@ body:not(.interactive-mode) .interactive-toggle:is(:hover,:focus-visible):before
 body:has(#motion-toggle[aria-pressed="true"]) .interactive-radar{animation-play-state:paused}
 @media(max-width:700px){body:not(.interactive-mode) .interactive-toggle{--radar-x:1.14;--radar-y:1.5}}
 @media(prefers-reduced-motion:reduce){body:not(.interactive-mode) .interactive-toggle:before,body:not(.interactive-mode) .interactive-radar{animation:none;opacity:0}}
+
+/* Mobile panels occupy separate bands and forward edge scrolling to the journey. */
+#journey-viewport{touch-action:pan-y pinch-zoom}
+@media(max-width:700px){
+ #interactive-room{--mobile-content-top:220px}
+ .interactive-mode .header{height:70px;padding-top:env(safe-area-inset-top)}
+ .room-heading{top:calc(82px + env(safe-area-inset-top));left:20px;right:20px;max-width:none}
+ .room-heading h2{font-size:28px;margin:9px 0}.room-heading p{margin:0;line-height:1.6}
+ .technology-sheet,.query-exhibit{top:var(--mobile-content-top);bottom:calc(18px + env(safe-area-inset-bottom));left:20px;right:20px;overscroll-behavior:contain}
+ .project-board{top:var(--mobile-content-top)!important;bottom:auto;height:132px;left:20px;right:20px;grid-template-rows:repeat(7,44px);border-bottom:1px solid #444}
+ .project-inline-detail{top:calc(var(--mobile-content-top) + 148px);bottom:calc(16px + env(safe-area-inset-bottom));left:20px;right:20px;padding:18px;background:#111;max-height:none}
+ .project-inline-detail h2{font-size:20px;padding-right:22px}
+ .career-index{top:var(--mobile-content-top);height:122px}.career-year{font-size:38px}.career-company{margin-top:7px;font-size:14px}.career-role{margin-top:4px}
+ #interactive-room[data-chapter='3'] .room-inspector{top:calc(var(--mobile-content-top) + 164px);bottom:calc(16px + env(safe-area-inset-bottom));left:20px;right:20px;max-height:none;padding:12px 0}
+ .query-exhibit{padding-bottom:20px}.query-controls{flex-wrap:wrap;gap:12px}
+ .exhibition-dialog{max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overscroll-behavior:contain;touch-action:pan-y pinch-zoom}
+}
+
+@media(max-width:700px){.project-board{height:auto;bottom:calc(20px + env(safe-area-inset-bottom));grid-template-rows:repeat(7,minmax(52px,1fr))}.project-inline-detail{display:none}.mobile-project-highlights{margin:24px 0;border-block:1px solid #383838}.mobile-project-highlights>summary{padding:16px 0;font-size:14px;color:#ddd;cursor:pointer}.mobile-project-highlights .interactive-highlight-demo{margin-bottom:20px}}
+
+#interactive-room[data-chapter='6'] #journey-viewport{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}

@@ -253,6 +253,16 @@
       document.querySelector('.archive-controls').classList.toggle('visible', nearest === 2);
       dispatch('spatial-chapter', { index: nearest });
     }
+    // DOM scene labels must share the mobile canvas's unobscured region.
+    const mobileScene=innerWidth<=700;
+    const copy=chapters[nearest].querySelector('.chapter-copy');
+    const sceneBottom=mobileScene?Math.max(76,Math.min(330,copy?.getBoundingClientRect().top??330)):innerHeight;
+    document.body.style.setProperty('--reading-scene-bottom',`${sceneBottom}px`);
+    const sceneLabels=document.querySelector('#scene-labels'),archiveControls=document.querySelector('.archive-controls');
+    sceneLabels.inert=mobileScene&&sceneBottom<=78;
+    const controlBounds=archiveControls.getBoundingClientRect();
+    archiveControls.style.clipPath=mobileScene?`inset(0 0 ${Math.max(0,controlBounds.bottom-sceneBottom)}px 0)`:'none';
+    archiveControls.inert=mobileScene&&controlBounds.top>=sceneBottom;
     dispatch('spatial-scroll', { progress: Math.min(1, Math.max(0, -chapters[nearest].getBoundingClientRect().top / Math.max(1, chapters[nearest].offsetHeight - innerHeight * .3))) });
     if (nearest === 3) {
       const readingPoint = (innerHeight + (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0)) / 2;

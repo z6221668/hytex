@@ -3,7 +3,7 @@
   const api=window.HYTEX_SPATIAL,room=document.querySelector('#interactive-room'),toggle=document.querySelector('#interactive-toggle');
   const canvas=document.querySelector('#resume-scene'),main=document.querySelector('#main'),panel=document.querySelector('#room-content'),inspector=document.querySelector('#room-inspector');
   const $=id=>document.getElementById(id),emit=(name,detail)=>document.dispatchEvent(new CustomEvent(name,{detail}));
-  const scenes=[['01','HYTEX',''],['02','技术','选择一项，展开技术说明。'],['03','项目','选择左侧项目，查看详情。'],['04','工作经历','左右拖动，查看不同公司的经历。'],['05','开源项目','独立查询同时执行，取得结果后汇总。'],['06','联系',''],['07','摄影','左右拖动挑选照片，点击放大，也可以按住显影。']];
+  const scenes=[['01','HYTEX',''],['02','技术','选择一项，展开技术说明。'],['03','项目','选择左侧项目，查看详情。'],['04','工作经历','左右拖动，查看不同公司的经历。'],['05','开源项目','独立查询同时执行，取得结果后汇总。'],['06','联系',''],['07','摄影','左右拖动挑选照片，长按显影后查看大图。']];
   let active=false,started=false,current=0,selection=0,savedScroll=0,yaw=0,pitch=0,zoom=1,drag=null,suppressClick=false,holdActivated=false,scrollFrame=0,holdTimer=null,gather=0,introLocked=false;
   const node=(tag,cls,content)=>{const n=document.createElement(tag);n.className=cls;if(content!==undefined)n.textContent=content;return n;};
   function setToggleLabel(label){toggle.textContent=label;const radar=node('span','interactive-radar');radar.setAttribute('aria-hidden','true');toggle.append(radar);}
@@ -37,7 +37,10 @@
       const p=RESUME.projects[index],demo=window.HYTEX_PROJECT_DEMOS?.[index];
       const top=node('div','exhibit-project-top');top.append(node('span','exhibit-project-number',p.number),node('p','exhibit-overline',p.label),node('h2','',p.title),node('p','exhibit-period',p.period));
       const body=node('div','exhibit-project-body');body.append(node('p','exhibit-summary',p.summary),makeTags(p.tags));
-      if(demo?.focus){const focus=node('section','exhibit-focus');focus.append(node('p','exhibit-overline','项目亮点'),node('h3','',demo.focus.title),node('p','',demo.focus.context),node('p','',demo.focus.contribution));if(demo.technical)focus.append(node('p','',demo.technical));body.append(focus);}
+      if(demo?.focus){const focus=node('section','exhibit-focus');focus.append(node('p','exhibit-overline','项目亮点'),node('h3','',demo.focus.title),node('p','',demo.focus.context),node('p','',demo.focus.contribution));if(demo.technical)focus.append(node('p','',demo.technical));body.append(focus);
+        const walkthrough=node('details','mobile-project-highlights');walkthrough.append(node('summary','','查看亮点演示'));
+        walkthrough.addEventListener('toggle',()=>{if(walkthrough.open){walkthrough.append(highlightHost);detail.classList.add('detail-ready');highlightDemo.mount(index);}else highlightDemo.stop();});body.append(walkthrough);
+      }
       const list=node('ol','exhibit-work');p.details.forEach((text,i)=>{const li=node('li','');li.append(node('span','',String(i+1).padStart(2,'0')),node('p','',text));list.append(li);});body.append(node('h3','exhibit-work-heading','负责的工作'),list);detail.append(top,body);
     }
     detail.showModal();detail.scrollTop=0;emit('spatial-modal',true);
@@ -111,8 +114,10 @@
   }
   function measurePageText(){
     textLayoutFrame=0;if(!active||!started)return;
+    room.style.setProperty('--mobile-content-top',`${room.querySelector('.room-heading').getBoundingClientRect().bottom+18}px`);
     if(current===1){sheet.style.top=`${room.querySelector('.room-heading').getBoundingClientRect().bottom+34}px`;}
     if(current===2)measureProjectTargets();
+    if(current===3)emit('exhibition-career-layout',{railY:careerIndex.getBoundingClientRect().bottom+12});
     emit('exhibition-text-target',{index:current,revision:textRevision,labels:captureText(current)});
   }
   function schedulePageText(){if(!textLayoutFrame)textLayoutFrame=requestAnimationFrame(measurePageText);}
@@ -121,14 +126,15 @@
   document.addEventListener('exhibition-text-ready',e=>{
     if(e.detail.index!==current||e.detail.revision!==textRevision)return;
     room.classList.remove('particle-arriving','tech-forming');sheet.classList.add('tech-ready');
-    if(current===2){projectButtons.forEach((button,index)=>{button.classList.add('arrived');button.disabled=false;});if(projectDefaultPending)showProjectInline(0);}
+    if(current===2){projectButtons.forEach((button,index)=>{button.classList.add('arrived');button.disabled=false;});if(projectDefaultPending&&innerWidth>700)showProjectInline(0);}
     if(current===3)reveal(true);
     if(current===4)queryView.replay();
   });
   const projectBoard=$('project-board'),projectDetail=$('project-inline-detail');let projectAnimation=null,projectDefaultPending=false;
-  const projectButtons=RESUME.projects.map((project,index)=>{const button=node('button','project-flight-row');button.type='button';button.disabled=true;button.setAttribute('aria-controls','project-inline-detail');button.setAttribute('aria-expanded','false');button.append(node('span','flight-marker',''),node('span','project-row-number',project.number),node('span','project-row-title',project.title));button.addEventListener('click',()=>showProjectInline(index));projectBoard.append(button);return button;});
+  const projectButtons=RESUME.projects.map((project,index)=>{const button=node('button','project-flight-row');button.type='button';button.disabled=true;button.setAttribute('aria-controls',innerWidth<=700?'exhibition-dialog':'project-inline-detail');if(innerWidth<=700)button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-expanded','false');button.append(node('span','flight-marker',''),node('span','project-row-number',project.number),node('span','project-row-title',project.title));button.addEventListener('click',()=>showProjectInline(index));projectBoard.append(button);return button;});
   function measureProjectTargets(){if(!active||current!==2)return;const heading=room.querySelector('.room-heading').getBoundingClientRect();projectBoard.style.top=`${heading.bottom+28}px`;emit('exhibition-project-layout',projectButtons.map(button=>{const r=button.querySelector('.flight-marker').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2,height:r.height};}));}
   function showProjectInline(index){
+    if(innerWidth<=700){projectDefaultPending=false;selection=index;projectDetail.hidden=true;showDetail(false,index);return;}
     projectDefaultPending=false;selection=index;emit('exhibition-select',{index});const p=RESUME.projects[index],demo=window.HYTEX_PROJECT_DEMOS?.[index];projectAnimation?.cancel();
     const close=node('button','inline-detail-close','×');close.type='button';close.setAttribute('aria-label','收起项目详情');close.addEventListener('click',()=>{projectDetail.hidden=true;projectButtons.forEach(b=>b.setAttribute('aria-expanded','false'));});
     const list=node('ol','inline-project-work');p.details.forEach(t=>list.append(node('li','',t)));
@@ -138,7 +144,7 @@
     projectButtons.forEach((b,i)=>{b.classList.toggle('selected',i===index);b.setAttribute('aria-expanded',String(i===index));});
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)projectAnimation=projectDetail.animate([{opacity:0,clipPath:'inset(48% 48% 48% 48%)',transform:'perspective(1000px) rotateY(-65deg) rotateZ(-8deg) scale(.4)'},{opacity:1,clipPath:'inset(0% 0% 0% 0%)',transform:'none'}],{duration:850,easing:'cubic-bezier(.16,1,.3,1)'});
   }
-  document.addEventListener('exhibition-project-arrived',e=>{if(current!==2||room.classList.contains('particle-arriving'))return;const button=projectButtons[e.detail.index];button.classList.add('arrived');button.disabled=false;if(e.detail.index===0&&projectDefaultPending&&!room.classList.contains('particle-arriving'))showProjectInline(0);});
+  document.addEventListener('exhibition-project-arrived',e=>{if(current!==2||room.classList.contains('particle-arriving'))return;const button=projectButtons[e.detail.index];button.classList.add('arrived');button.disabled=false;if(e.detail.index===0&&innerWidth>700&&projectDefaultPending&&!room.classList.contains('particle-arriving'))showProjectInline(0);});
   window.addEventListener('resize',measureProjectTargets);
   function reveal(value){inspector.hidden=!value;room.classList.toggle('show-content',value);}
   function choose(index,play=false){stopHold();if(current===2&&play){showProjectInline(index);return;}selection=index;if(current===6)photoLabel.textContent=HYTEX_HOBBIES.photos[index].caption;gather=0;renderContent();emit('exhibition-select',{index});if(play)activate();}
@@ -147,7 +153,7 @@
     cancelGesture();
     if(started)emit('exhibition-text-source',{index:current,labels:captureText(current)});textRevision++;room.classList.toggle('particle-arriving',started);
     queryView.setActive(index===4,true);contact.hidden=index!==5;careerIndex.hidden=index!==3;photoLabel.hidden=index!==6;if(index===3)careerStrip.style.setProperty('--career-index','0');if(index===6)photoLabel.textContent=HYTEX_HOBBIES.photos[0].caption;copyStatus.textContent='';current=index;selection=index===1?1:index===3?3:0;gather=0;yaw=pitch=0;zoom=1;reveal(false);stopHold();
-    room.classList.toggle('tech-forming',index===1);sheet.hidden=index!==1;if(index===1){sheet.classList.remove('tech-ready');sheet.scrollTop=0;sheet.querySelectorAll('.tech-description').forEach(n=>n.hidden=true);techTiles.forEach(b=>{b.setAttribute('aria-expanded','false');b.lastChild.textContent='+';});}projectBoard.hidden=index!==2;projectDetail.hidden=true;projectAnimation?.cancel();if(index===2){projectDefaultPending=true;projectButtons.forEach(b=>{b.disabled=true;b.classList.remove('arrived','selected');b.setAttribute('aria-expanded','false');});requestAnimationFrame(measureProjectTargets);}room.dataset.chapter=index;$('room-kicker').textContent=scenes[index][0];$('room-title').textContent=scenes[index][1];$('room-hint').textContent=scenes[index][2];
+    room.classList.toggle('tech-forming',index===1);sheet.hidden=index!==1;if(index===1){sheet.classList.remove('tech-ready');sheet.scrollTop=0;sheet.querySelectorAll('.tech-description').forEach(n=>n.hidden=true);techTiles.forEach(b=>{b.setAttribute('aria-expanded','false');b.lastChild.textContent='+';});}projectBoard.hidden=index!==2;projectDetail.hidden=true;projectAnimation?.cancel();if(index===2){projectDefaultPending=innerWidth>700;projectButtons.forEach(b=>{b.disabled=true;b.classList.remove('arrived','selected');b.setAttribute('aria-expanded','false');});requestAnimationFrame(measureProjectTargets);}room.dataset.chapter=index;$('room-kicker').textContent=scenes[index][0];$('room-title').textContent=scenes[index][1];$('room-hint').textContent=index===2&&innerWidth<=700?'点击项目，查看详情。':scenes[index][2];
     hideLens();renderContent();textElements(index).forEach(element=>element.dataset.particleText='');emit('exhibition-chapter',{index});if(started)schedulePageText();
   }
   function syncScroll(){
@@ -162,13 +168,10 @@
   }
   // Fixed panels are siblings of the scroll surface, so native scroll chaining
   // cannot reach it. Consume panel content first, then pass the remainder on.
-  document.addEventListener('wheel',e=>{
-    if(active&&introLocked&&!e.ctrlKey){if(e.cancelable)e.preventDefault();return;}
-    if(!active||!started||e.ctrlKey||document.querySelector('dialog[open]')||!e.cancelable||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;
-    if(viewport.contains(e.target))return;
-    let remaining=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?viewport.clientHeight:1);
-    if(!remaining)return;
-    for(let element=e.target instanceof Element?e.target:null;element&&element!==document.body;element=element.parentElement){
+  function scrollFrom(target,delta){
+    let remaining=delta;
+    for(let element=target instanceof Element?target:null;element&&element!==room;element=element.parentElement){
+      if(element===viewport)break;
       if(element.scrollHeight<=element.clientHeight+1||!/(auto|scroll)/.test(getComputedStyle(element).overflowY))continue;
       const before=element.scrollTop;
       element.scrollTop=Math.max(0,Math.min(element.scrollHeight-element.clientHeight,before+remaining));
@@ -176,6 +179,29 @@
       if(Math.abs(remaining)<.5)break;
     }
     if(Math.abs(remaining)>=.5)viewport.scrollTop+=remaining;
+  }
+  // Overlay panels are siblings of the scroll viewport: touch needs explicit chaining too.
+  let panelTouch=null;
+  room.addEventListener('touchstart',e=>{
+    panelTouch=null;
+    if(!active||!started||introLocked||e.touches.length!==1||viewport.contains(e.target))return;
+    const t=e.touches[0];panelTouch={target:e.target,x:t.clientX,y:t.clientY,lastY:t.clientY,axis:null};
+  },{passive:true});
+  room.addEventListener('touchmove',e=>{
+    if(!panelTouch||e.touches.length!==1||!e.cancelable)return;
+    const t=e.touches[0],dx=t.clientX-panelTouch.x,dy=t.clientY-panelTouch.y;
+    if(!panelTouch.axis&&Math.hypot(dx,dy)>7)panelTouch.axis=Math.abs(dy)>=Math.abs(dx)?'y':'x';
+    if(panelTouch.axis!=='y')return;
+    e.preventDefault();stopHold();suppressClick=true;
+    scrollFrom(panelTouch.target,panelTouch.lastY-t.clientY);panelTouch.lastY=t.clientY;
+  },{passive:false});
+  room.addEventListener('touchend',()=>{panelTouch=null;},{passive:true});
+  room.addEventListener('touchcancel',()=>{panelTouch=null;},{passive:true});
+  document.addEventListener('wheel',e=>{
+    if(active&&introLocked&&!e.ctrlKey){if(e.cancelable)e.preventDefault();return;}
+    if(!active||!started||e.ctrlKey||document.querySelector('dialog[open]')||!e.cancelable||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;
+    if(viewport.contains(e.target))return;
+    scrollFrom(e.target,e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?viewport.clientHeight:1));
     e.preventDefault();
   },{passive:false});
   viewport.addEventListener('scroll',()=>{if(!scrollFrame)scrollFrame=requestAnimationFrame(syncScroll);},{passive:true});
@@ -225,20 +251,20 @@
   });$('room-panel-toggle').addEventListener('click',()=>reveal(false));
   function startHold(){if(current!==6||holdTimer)return;gather=0;const t=performance.now();holdTimer=setInterval(()=>{gather=Math.min(1,(performance.now()-t)/1400);emit('exhibition-gather',{value:gather});if(gather>=1){stopHold();holdActivated=true;activate();}},35);}
   function stopHold(){if(holdTimer){clearInterval(holdTimer);holdTimer=null;}}
-  document.addEventListener('exhibition-picked',e=>{if(!active)return;choose(e.detail.index,true);});
+  document.addEventListener('exhibition-picked',e=>{if(!active)return;choose(e.detail.index,current!==6);if(current===6&&e.detail.hold)startHold();});
   document.addEventListener('exhibition-preview',e=>{selection=e.detail.index;renderContent();if(current===3&&!room.classList.contains('particle-arriving'))reveal(true);if(current===6)photoLabel.textContent=HYTEX_HOBBIES.photos[selection].caption;});
   document.addEventListener('exhibition-complete',e=>{if(!active||e.detail.chapter!==current)return;if(current===2)showProjectInline(e.detail.index);else if(current===6)showDetail(true,e.detail.index);else if(current!==0&&current!==4&&current!==5)reveal(true);});
   // The scroll surface handles native vertical scrolling; horizontal drags manipulate objects.
   room.addEventListener('pointerdown',e=>{
     if(!started||introLocked||e.button>0||e.target.closest('button,a,input,dialog')&&!e.target.closest('.career-word'))return;
     drag={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY};suppressClick=false;holdActivated=false;
-    if(e.pointerType==='mouse')viewport.setPointerCapture(e.pointerId);if(current===6)startHold();
+    if(e.pointerType==='mouse')viewport.setPointerCapture(e.pointerId);if(current===6)emit('exhibition-hit',{x:e.clientX,y:e.clientY,hold:true});
   });
   room.addEventListener('pointermove',e=>{
     if(!started)return;if(!drag||drag.id!==e.pointerId)return;
     const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY;
     if(Math.hypot(dx,dy)>7){suppressClick=true;stopHold();}
-    if(Math.abs(dx)>Math.abs(dy)&&(current===3||current===6)){yaw+= (e.clientX-drag.x)*(current===3?.004:.012);emit('exhibition-view',{yaw,pitch,zoom});}
+    if(Math.abs(dx)>Math.abs(dy)&&(current===3||current===6)&&!e.target.closest('.room-inspector')){yaw+= (e.clientX-drag.x)*(current===3?.004:.012);emit('exhibition-view',{yaw,pitch,zoom});}
     drag.x=e.clientX;drag.y=e.clientY;
   });
   function release(e){
@@ -247,7 +273,7 @@
   }
   room.addEventListener('pointerup',release);room.addEventListener('pointercancel',cancelGesture);viewport.addEventListener('lostpointercapture',()=>{if(drag)cancelGesture();});
   viewport.addEventListener('click',e=>{if(!started||e.target.closest('button,a,input'))return;if(suppressClick||holdActivated){suppressClick=false;holdActivated=false;return;}emit('exhibition-hit',{x:e.clientX,y:e.clientY});});
-  viewport.addEventListener('keydown',e=>{if(e.target!==viewport||!started)return;if(e.key==='Enter'||e.key===' '){if([2,4,5,6].includes(current)){e.preventDefault();if(current===6)startHold();else activate();}}if(e.key==='ArrowLeft'||e.key==='ArrowRight'){if(current===3){e.preventDefault();choose(Math.max(0,Math.min(RESUME.experience.length-1,selection+(e.key==='ArrowRight'?-1:1))));}else if(current===6){e.preventDefault();const count=HYTEX_HOBBIES.photos.length;choose((selection+(e.key==='ArrowRight'?1:-1)+count)%count);}}});
+  viewport.addEventListener('keydown',e=>{if(e.target!==viewport||!started||e.repeat)return;if(e.key==='Enter'||e.key===' '){if([2,4,5,6].includes(current)){e.preventDefault();if(current===6)startHold();else activate();}}if(e.key==='ArrowLeft'||e.key==='ArrowRight'){if(current===3){e.preventDefault();choose(Math.max(0,Math.min(RESUME.experience.length-1,selection+(e.key==='ArrowRight'?-1:1))));}else if(current===6){e.preventDefault();const count=HYTEX_HOBBIES.photos.length;choose((selection+(e.key==='ArrowRight'?1:-1)+count)%count);}}});
   viewport.addEventListener('keyup',()=>{if(gather<1)stopHold();});
   function cancelGesture(){const id=drag?.id;drag=null;stopHold();holdActivated=false;suppressClick=true;gather=0;emit('exhibition-gather',{value:0});emit('exhibition-cancel');if(id!==undefined&&viewport.hasPointerCapture(id))viewport.releasePointerCapture(id);}
   window.addEventListener('blur',cancelGesture);document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelGesture();});

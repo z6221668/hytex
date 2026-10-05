@@ -207,3 +207,5 @@ body[data-chapter="6"] .scene-caption{display:none}
 .whitelist-transfer.reading .whitelist-transfer-line:after{animation-play-state:paused}.demo-running .whitelist-transfer.reading .whitelist-transfer-line:after{animation-play-state:running}
 
 .whitelist-cache-row[hidden]{display:none}.whitelist-confirm{scroll-margin-block:100px}.funnel-track{border-left:1px solid var(--line)}
+
+@media(max-width:700px){body:not(.interactive-mode) .scene-labels,body:not(.interactive-mode) .scene-stage:not(.project-presenting){clip-path:inset(76px 0 max(0px,calc(100% - var(--reading-scene-bottom,330px))) 0)}}
