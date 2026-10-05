@@ -1,4 +1,5 @@
 import * as THREE from './assets/vendor/three.module.js';
+import { createExhibition } from './interactive-scene.js?v=3';
 
 const data = window.RESUME;
 const canvas = document.querySelector('#resume-scene');
@@ -16,6 +17,8 @@ if (renderer) {
 async function initScene(renderer) {
   const paperGrain = new Image(); paperGrain.src = new URL('./assets/paper-grain.png', import.meta.url).href;
   await paperGrain.decode();
+  const exhibition = createExhibition(renderer);
+  let interactive = false;
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(35, 1, .1, 100);
   const main = new THREE.Group(); scene.add(main);
@@ -373,8 +376,10 @@ async function initScene(renderer) {
   writing(letterPaper, 2.7, 1.4, (p, w, h) => { p.fillStyle = '#64836e'; p.font = '100px Archivo'; p.fillText('HELLO,', 40, 220); p.font = '42px Archivo'; p.fillText('68449317@qq.com', 40, 380); }, [0, .4, .065]);
 
   function resize() {
+    if (interactive) { exhibition.resize(); requestFrame(); return; }
     width = innerWidth; height = innerHeight; mobile = width <= 700;
     const region = mobile ? { x: 0, y: 76, w: width, h: 254 } : { x: width * .53, y: 102, w: width * .45, h: height - 185 };
+    renderer.setRenderTarget(null); renderer.setScissorTest(false); renderer.clear();
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, mobile ? 1.25 : 1.5)); renderer.setSize(width, height, false);
     camera.aspect = region.w / region.h; camera.position.set(0, 0, mobile ? 9.2 : 12.2); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix();
     renderer.setViewport(region.x, height - region.y - region.h, region.w, region.h); renderer.setScissor(region.x, height - region.y - region.h, region.w, region.h); renderer.setScissorTest(true);
@@ -620,6 +625,7 @@ async function initScene(renderer) {
     }
   }
   function render(dt) {
+    if (interactive) { exhibition.render(dt, paused || reduced.matches); return; }
     transition = reduced.matches ? 1 : Math.min(1, transition + dt / .7);
     const t = sceneEase(transition);
     labelOpacity = THREE.MathUtils.lerp(labelOpacityFrom, chapter === 1 ? 1 : 0, t);
@@ -649,9 +655,9 @@ async function initScene(renderer) {
     if (document.hidden || (modal && !projectPresentation) || lost) { lastTime = 0; return; }
     const dt = lastTime ? Math.min((now - lastTime) / 1000, .05) : 1 / 60; lastTime = now;
     // Pausing ambient motion still permits chapter transitions and a user-triggered transfer.
-    if (!modal && ((!paused && chapter !== 6) || skillTransfer || clock < manualQueryUntil)) clock += dt;
+    if (!modal && ((!paused && (interactive ? exhibition.ambient : chapter !== 6)) || skillTransfer || clock < manualQueryUntil)) clock += dt;
     render(dt); interactionFrames = Math.max(0, interactionFrames - 1);
-    if (modal ? projectPresentation && projectPresentation.phase !== 'hold' : (!paused && chapter !== 6) || transition < 1 || skillTransfer || interactionFrames || clock < manualQueryUntil) requestFrame();
+    if (modal ? projectPresentation && projectPresentation.phase !== 'hold' : (!paused && (interactive ? exhibition.ambient : chapter !== 6)) || (interactive && exhibition.busy) || transition < 1 || skillTransfer || interactionFrames || clock < manualQueryUntil) requestFrame();
     else lastTime = 0;
   }
   function requestFrame() { if (!preparing && !frame && !document.hidden && (!modal || projectPresentation) && !lost) frame = requestAnimationFrame(tick); }
@@ -667,7 +673,14 @@ async function initScene(renderer) {
     if (previousChapter === 1 && skillTransfer) finishSkill();
     requestFrame();
   }
-  document.addEventListener('spatial-chapter', e => setChapter(e.detail.index));
+  document.addEventListener('spatial-interactive-mode', e => {
+    if (e.detail.active && skillTransfer) finishSkill();
+    interactive = e.detail.active; if(interactive)transition=1; labels.hidden = interactive; exhibition.setActive(interactive);
+    renderer.setRenderTarget(null); renderer.setScissorTest(false); renderer.clear();
+    if (!interactive) resize(); interactionFrames = 90; requestFrame();
+  });
+  document.addEventListener('exhibition-wake', () => { interactionFrames = 90; requestFrame(); });
+  document.addEventListener('spatial-chapter', e => { if (!interactive) setChapter(e.detail.index); });
   document.addEventListener('spatial-scroll', e => { scrollProgress = e.detail.progress; requestFrame(); });
   document.addEventListener('spatial-select-skill', e => transferSkill(e.detail.index));
   document.addEventListener('spatial-description-complete', e => { if (e.detail.index === selectedSkill && !skillTransfer) skillReturnAt = clock + 10; });
@@ -681,7 +694,7 @@ async function initScene(renderer) {
   document.addEventListener('spatial-modal', e => { modal = e.detail; if (modal) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; } else { restoreProjectPresentation(false); requestFrame(); } });
   document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelAnimationFrame(frame); frame = 0; lastTime = 0; } else requestFrame(); });
   document.addEventListener('pointermove', e => {
-    if (modal || chapter === 6 || e.pointerType === 'touch') return;
+    if (interactive || modal || chapter === 6 || e.pointerType === 'touch') return;
     const r = scene.userData.region;
     pointerInside = !e.target.closest('a,button,input,select,dialog') && e.clientX >= r.x && e.clientX <= r.x + r.w && e.clientY >= r.y && e.clientY <= r.y + r.h;
     pointerTarget.set(pointerInside ? (e.clientX - r.x) / r.w * 2 - 1 : 0, pointerInside ? 1 - (e.clientY - r.y) / r.h * 2 : 0);
@@ -689,7 +702,7 @@ async function initScene(renderer) {
   }, { passive: true });
   document.addEventListener('pointerleave', () => { if (chapter === 6) return; pointerInside = false; pointerTarget.set(0, 0); hoverDirty = true; interactionFrames = Math.max(interactionFrames, 45); requestFrame(); });
   document.addEventListener('click', e => {
-    if (modal || e.target.closest('a,button,input,select,dialog')) return;
+    if (interactive || modal || e.target.closest('a,button,input,select,dialog')) return;
     const r = scene.userData.region;
     if (e.clientX < r.x || e.clientX > r.x + r.w || e.clientY < r.y || e.clientY > r.y + r.h) return;
     const mouse = new THREE.Vector2((e.clientX - r.x) / r.w * 2 - 1, 1 - (e.clientY - r.y) / r.h * 2);
@@ -712,7 +725,7 @@ async function initScene(renderer) {
     cancelAnimationFrame(frame); frame = 0;
     if (event.persisted) return;
     scene.traverse(object => { if (object.material) for (const material of Array.isArray(object.material) ? object.material : [object.material]) resources.add(material); });
-    resources.forEach(resource => resource.dispose()); renderer.dispose();
+    resources.forEach(resource => resource.dispose()); exhibition.dispose(); renderer.dispose();
   });
   window.addEventListener('pageshow', () => requestFrame());
   // Expose renderer statistics for local verification, without adding implementation details to the page.
@@ -723,9 +736,11 @@ async function initScene(renderer) {
   renderer.setRenderTarget(liveTarget);
   await renderer.compileAsync(scene, camera);
   await renderer.compileAsync(blendScene, blendCamera);
+  await exhibition.prepare();
   renderer.setRenderTarget(null);
   preparing = false;
   selectedSkill = window.HYTEX_SPATIAL.state.skill; selectedProject = window.HYTEX_SPATIAL.state.project; selectedCareer = window.HYTEX_SPATIAL.state.career;
   window.HYTEX_SCENE_READY = !lost;
+  emit('spatial-scene-ready');
   if (!lost) { resize(); render(1); requestFrame(); }
 }

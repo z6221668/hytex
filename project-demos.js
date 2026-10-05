@@ -1,6 +1,6 @@
 'use strict';
-(() => {
-  const host = document.querySelector('#project-demo'), dialog = document.querySelector('#project-dialog');
+window.createProjectDemo = function(host, dialog, jump = null) {
+  const prefix = host.id;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let data, mode = 'optimization', step = 0, playing = false, visible = false, timer = 0, observer, generation = 0;
   const make = (tag, cls, text) => { const node = document.createElement(tag); node.className = cls; if (text !== undefined) node.textContent = text; return node; };
@@ -139,46 +139,41 @@
     });
     host.querySelector('.demo-reading-note').textContent = step>=4?`平台 ${indexFilters.platform} 的 ID 集合，与版本 ${indexFilters.version} 的 ID 集合取交集：${hits.result.join('、')||'无匹配'}。${step===5?'用这些 ID 返回完整包信息。':''}`:data.index.notes[step];
   }
-  let whitelistExisting = new Map(), whitelistReplay = false;
+  let whitelistExisting = new Map(), whitelistConfirmed = false;
   function whitelistClassification() {
     const bits = new Set([...whitelistExisting.values()].flat());
     return data.whitelist.records.map(record => ({ ...record, possible: record.bits.every(bit => bits.has(bit)), existing: whitelistExisting.has(record.id) }));
   }
   function buildWhitelist(body) {
-    body.append(make('p', 'demo-basis', data.focus.context), make('p', 'index-example-note', '名单和位图为原理示例，非真实名单或业务统计。'));
-    const grid = make('div', 'whitelist-grid'), incoming = make('section', 'whitelist-input'); incoming.append(make('h5', '', '待导入名单'));
-    data.whitelist.records.forEach(record => { const row = make('div', 'whitelist-record'); row.dataset.whitelistId = record.id; row.append(make('strong', '', record.id), make('span', 'whitelist-status', '等待筛查')); incoming.append(row); }); grid.append(incoming);
-    const filter = make('section', 'whitelist-filter'); filter.append(make('h5', '', '布隆过滤器 + Redis'), make('p', '', '① 快速筛查 → 整理候选记录'));
-    const bitmap = make('div', 'whitelist-bitmap'); for (let i=0;i<16;i++) { const cell=make('span','',String(i));cell.dataset.bit=i;bitmap.append(cell); } filter.append(bitmap);
-    const candidates = make('div', 'whitelist-candidates'); candidates.append(make('p', 'whitelist-possible'), make('p', 'whitelist-negative')); filter.append(candidates,make('p','whitelist-filter-note','命中表示可能存在；记录标记以实际确认结果为准。')); grid.append(filter);
-    const database = make('section', 'whitelist-batch'); database.append(make('h5', '', '② MySQL 批量确认与导入'),make('p','whitelist-confirmed'),make('p','whitelist-new'),make('p','whitelist-collision')); grid.append(database); body.append(grid);
-    const trace=make('div','whitelist-trace');trace.append(make('strong','','跟随一条记录 · W04'),make('p','whitelist-trace-note'));body.append(trace);
-    const summary = make('div', 'whitelist-summary'); summary.append(make('strong', 'whitelist-summary-text'),make('p','whitelist-summary-note'));
-    const again=make('button','whitelist-again','再次导入同一份名单');again.type='button';again.addEventListener('click',()=>{
-      data.whitelist.records.forEach(record=>whitelistExisting.set(record.id,record.bits));whitelistReplay=true;step=0;playing=!reduced.matches&&!window.HYTEX_SPATIAL?.state.paused;renderStep();schedule();
-    });summary.append(again);body.append(summary);
-    const stages=make('div','demo-flow index-steps');data.whitelist.nodes.forEach((name,i)=>{const node=make('button','demo-node');node.type='button';node.dataset.stage=i;node.append(make('span','demo-flow-number',String(i+1).padStart(2,'0')),make('strong','',name));node.addEventListener('click',()=>seek(i));stages.append(node);});body.append(stages);
+    body.append(make('p','index-example-note','示例记录用于说明两阶段流程，不代表实际业务数据或校验规则。符合性与已存在标记分别展示。'));
+    const stages=make('div','whitelist-two-stage');
+    const preview=make('section','whitelist-preview');preview.append(make('p','whitelist-stage-label','01 / 上传与校验'),make('h5','','Excel → 校验结果'));
+    const counts=make('div','whitelist-counts');['符合','不符合','已存在'].forEach((label,i)=>{const cell=make('div','');cell.append(make('strong',`whitelist-count-${i}`,'—'),make('span','',label));counts.append(cell);});preview.append(counts);
+    preview.append(make('p','whitelist-screening','布隆过滤器 + Redis 辅助筛查，标记已有记录。'));
+    const cache=make('div','whitelist-cache');cache.append(make('p','whitelist-cache-label','缓存 List'),make('p','whitelist-cache-state','尚未写入缓存'));
+    const records=make('div','whitelist-cache-records');data.whitelist.records.filter(record=>record.qualified).forEach(record=>{const row=make('div','whitelist-cache-row');row.dataset.record=record.id;row.append(make('strong','',record.id),make('span','whitelist-record-state','等待校验'));records.append(row);});cache.append(records);preview.append(cache);
+    const commit=make('section','whitelist-commit');commit.append(make('p','whitelist-stage-label','02 / 确认后导入'),make('h5','','缓存 List → MySQL'));
+    const confirm=make('button','whitelist-confirm','确认导入');confirm.type='button';confirm.addEventListener('click',()=>{if(step<3||whitelistConfirmed)return;whitelistConfirmed=true;step=4;playing=!reduced.matches&&!window.HYTEX_SPATIAL?.state.paused;renderStep();schedule();});
+    commit.append(make('p','whitelist-wait','等待第一阶段完成'),confirm);
+    const route=make('div','whitelist-transfer');route.append(make('span','','读取 List'),make('i','whitelist-transfer-line'),make('span','','批量写入'));commit.append(route);
+    const batch=make('div','whitelist-import-records');data.whitelist.records.forEach(record=>{const token=make('span','',record.id);token.dataset.importRecord=record.id;batch.append(token);});commit.append(batch,make('p','whitelist-import-status','尚未导入'));
+    stages.append(preview,commit);body.append(stages);
+    const flow=make('div','demo-flow index-steps');data.whitelist.nodes.forEach((name,i)=>{const button=make('button','demo-node');button.type='button';button.dataset.stage=i;button.append(make('span','demo-flow-number',String(i+1).padStart(2,'0')),make('strong','',name));button.addEventListener('click',()=>seek(i));flow.append(button);});body.append(flow);
   }
   function renderWhitelist() {
-    const rows=whitelistClassification(), existing=rows.filter(r=>r.existing), fresh=rows.filter(r=>!r.existing), possible=rows.filter(r=>r.possible), negatives=rows.filter(r=>!r.possible), collisions=possible.filter(r=>!r.existing);
-    const bits=new Set([...whitelistExisting.values()].flat());
-    host.querySelectorAll('[data-bit]').forEach(cell=>cell.classList.toggle('set',step>=1&&bits.has(Number(cell.dataset.bit))));
-    host.querySelectorAll('.whitelist-record').forEach(node=>{const record=rows.find(r=>r.id===node.dataset.whitelistId);
-      let text='等待筛查';if(step>=1)text=record.possible?'可能已存在':'未命中';if(step>=3)text=record.existing?'已存在':'待导入';if(step>=4&&!record.existing)text='已导入';
-      node.querySelector('.whitelist-status').textContent=text;node.classList.toggle('possible',step>=1&&step<3&&record.possible);node.classList.toggle('existing',step>=3&&record.existing);node.classList.toggle('inserted',step>=4&&!record.existing);
-    });
-    const ids=list=>list.map(r=>r.id).join('、')||'无';
-    host.querySelector('.whitelist-possible').textContent=step>=2?`待确认：${ids(possible)}`:'候选记录将在筛查后显示。';
-    host.querySelector('.whitelist-negative').textContent=step>=2?`未命中：${ids(negatives)}`:'';
-    host.querySelector('.whitelist-confirmed').textContent=step>=3?`实际已存在：${ids(existing)}`:'等待批量确认。';
-    host.querySelector('.whitelist-new').textContent=step>=3?`${step>=4?'本次导入':'待导入'}：${ids(fresh)}`:'';
-    host.querySelector('.whitelist-collision').textContent=step>=3&&collisions.length?`${ids(collisions)} 虽然命中布隆位图，实际并未存在，仍需导入。`:'';
-    host.querySelector('.whitelist-summary-text').textContent=step>=5?`已有 ${existing.length} 条 · 新增 ${fresh.length} 条`:'完成后显示导入结果';
-    host.querySelector('.whitelist-summary-note').textContent=whitelistReplay?'再次导入相同名单，已有记录不再重复写入。':'确认已有数据，批量写入新增数据，并逐条标记结果。';
-    host.querySelector('.whitelist-again').disabled=step<5;
-    host.querySelector('.whitelist-trace-note').textContent=whitelistReplay?'W04 已在上次导入中写入；再次导入时，确认存在并标记已有。':['W04 随名单进入筛查。','W04 命中位图：只表示可能存在。','W04 进入待确认的候选名单。','批量确认：W04 实际不存在，应作为新增记录。','W04 与其他新增记录批量写入。','W04 标记为已导入，已有记录分别标记。'][step];
-    host.querySelectorAll('[data-bit]').forEach(cell=>cell.classList.toggle('checked',step===1&&[1,4,9].includes(Number(cell.dataset.bit))));
-    host.querySelector('.demo-reading-note').textContent=whitelistReplay&&step===3?'再次确认时，这六条记录均已存在。':data.whitelist.notes[step];
+    const rows=whitelistClassification(),qualified=rows.filter(r=>r.qualified),invalid=rows.filter(r=>!r.qualified),existing=rows.filter(r=>r.existing),fresh=qualified.filter(r=>!r.existing);
+    if(step===3&&!whitelistConfirmed){playing=false;cancelTick();}
+    [qualified.length,invalid.length,existing.length].forEach((count,i)=>host.querySelector(`.whitelist-count-${i}`).textContent=step>=2?count:'—');
+    host.querySelector('.whitelist-cache').classList.toggle('stored',step>=3);
+    host.querySelector('.whitelist-cache-state').textContent=step>=3?`已缓存 ${qualified.length} 条符合数据 · List`:'仅保存符合的数据；不符合项只统计数量';
+    host.querySelectorAll('[data-record]').forEach(element=>{const record=rows.find(r=>r.id===element.dataset.record);element.hidden=step<3;element.querySelector('.whitelist-record-state').textContent=step<1?'等待校验':`${record.qualified?'符合':'不符合'}${record.existing?' · 已存在':''}`;});
+    host.querySelector('.whitelist-wait').textContent=step<3?'第一阶段尚未完成':!whitelistConfirmed?'校验已完成，等待确认；尚未导入。':step===4?'已确认，正在读取缓存 List。':'缓存数据已完成批量处理。';
+    const confirm=host.querySelector('.whitelist-confirm');confirm.disabled=step<3||whitelistConfirmed;confirm.textContent=whitelistConfirmed?'已确认导入':'确认导入';
+    host.querySelector('.whitelist-transfer').classList.toggle('reading',step===4);host.querySelector('.whitelist-transfer').classList.toggle('written',step===5);
+    host.querySelectorAll('[data-import-record]').forEach(element=>{const record=fresh.find(r=>r.id===element.dataset.importRecord);element.hidden=step<4||!record;element.classList.toggle('written',step===5);});
+    host.querySelector('.whitelist-import-status').textContent=step<4?'MySQL：尚未执行导入':step===4?`从缓存取得 ${qualified.length} 条符合数据，准备批量写入。`:`示例结果：新增 ${fresh.length} 条，已有 ${existing.length} 条。`;
+    host.querySelectorAll('[data-stage]').forEach(button=>button.disabled=Number(button.dataset.stage)>3&&!whitelistConfirmed);
+    host.querySelector('.demo-reading-note').textContent=data.whitelist.notes[step];
   }
   function buildFunnel(body) {
     body.append(make('p','demo-basis',data.focus.context),make('p','demo-contribution',data.focus.contribution),make('p','index-example-note','以下数量为示例数据，不代表真实业务成绩。'));
@@ -314,6 +309,7 @@
     if (data.architecture && mode === 'flow') background.append(make('p', 'demo-contribution', data.focus.contribution));
     if (data.technical) body.append(make('p', 'demo-data-note', data.technical));
     if (data.database) { body.append(make('h4', 'demo-data-title', '缓存与数据处理'), make('p', 'demo-data-note', data.database)); }
+    if(!jump)body.append(reading);
     step = 0; renderStep(); schedule();
   }
   function renderStep() {
@@ -342,19 +338,19 @@
       packet.style.transform = `translate(${x}px,${y}px)`;
     }
     host.querySelector('.demo-body').dataset.phase=step;
-    host.querySelector('.demo-reading-kicker').textContent=mode==='sms'?'短信接口防护':mode==='websocket'?['问题场景','重复投递','连接登记','连接登记','投递结果','失效清理','重新登记'][step]:mode==='index'?(step<3?'索引写入':step===3?'选择条件':step===4?'求交集':'查询结果'):mode==='whitelist'?(step<3?'筛查名单':step<5?'确认并导入':'结果标记'):mode==='fullstack'?(step===0?'多端适配':step===4?'页面回显':'接口请求'):mode==='funnel'?'业务转化':mode==='optimization'?(step<3?'原有流程':'优化流程'):'当前环节';
+    host.querySelector('.demo-reading-kicker').textContent=mode==='sms'?'短信接口防护':mode==='websocket'?['问题场景','重复投递','连接登记','连接登记','投递结果','失效清理','重新登记'][step]:mode==='index'?(step<3?'索引写入':step===3?'选择条件':step===4?'求交集':'查询结果'):mode==='whitelist'?(step<4?'第一阶段 / 上传与校验':'第二阶段 / 确认导入'):mode==='fullstack'?(step===0?'多端适配':step===4?'页面回显':'接口请求'):mode==='funnel'?'业务转化':mode==='optimization'?(step<3?'原有流程':'优化流程'):'当前环节';
     host.querySelector('.demo-reading-title').textContent=mode==='optimization'?`${step>=3?'优化后':'优化前'} · ${data.optimization.steps[phase][step>=3?'after':'before']}`:data[mode].nodes[step];
     host.querySelector('.demo-reading-number').textContent = `${String(step + 1).padStart(2, '0')} / ${String(count()).padStart(2, '0')}`;
     host.querySelector('.demo-progress').value = step; host.querySelector('.demo-progress').max = count() - 1;
     host.querySelector('.demo-progress').style.setProperty('--demo-progress',`${step / Math.max(1,count()-1)*100}%`);
-    const play = host.querySelector('.demo-play'); play.textContent = playing ? '暂停' : step === count() - 1 ? '重播' : '播放'; play.setAttribute('aria-pressed', String(playing));
+    const play = host.querySelector('.demo-play'); play.textContent = playing ? '暂停' : step === count() - 1 ? '重播' : '播放'; play.setAttribute('aria-pressed', String(playing));play.disabled=mode==='whitelist'&&step===3&&!whitelistConfirmed;if(play.disabled)play.textContent='等待确认';
     host.classList.toggle('demo-running', canPlay());
-    host.querySelector('.demo-prev').disabled = step === 0; host.querySelector('.demo-next').disabled = step === count() - 1;
+    host.querySelector('.demo-prev').disabled = step === 0; host.querySelector('.demo-next').disabled = step === count() - 1 || mode==='whitelist'&&step===3&&!whitelistConfirmed;
   }
-  function seek(index) { playing = false; step = Math.max(0, Math.min(count() - 1, index)); cancelTick(); renderStep(); }
-  document.querySelector('#demo-jump').addEventListener('click', () => host.scrollIntoView({ behavior: reduced.matches ? 'instant' : 'smooth', block: 'start' }));
+  function seek(index) { playing = false; step = Math.max(0, Math.min(mode==='whitelist'&&!whitelistConfirmed?3:count()-1,index)); cancelTick(); renderStep(); }
+  jump?.addEventListener('click', () => host.scrollIntoView({ behavior: reduced.matches ? 'instant' : 'smooth', block: 'start' }));
   function mount(index) {
-    stop(); data = window.HYTEX_PROJECT_DEMOS[index]; document.querySelector('#demo-jump').hidden = !data; if (!data) { host.hidden = true; host.replaceChildren(); return; }
+    stop(); data = window.HYTEX_PROJECT_DEMOS[index]; if(jump)jump.hidden = !data; if (!data) { host.hidden = true; host.replaceChildren(); return; }
     host.hidden = false; playing = !reduced.matches && !window.HYTEX_SPATIAL?.state.paused; mode = data.sms ? 'sms' : data.websocket ? 'websocket' : data.fullstack ? 'fullstack' : data.funnel ? 'funnel' : data.whitelist ? 'whitelist' : data.optimization ? 'optimization' : 'flow'; visible = false;
     host.replaceChildren();
     const heading = make('div', 'demo-heading'); heading.append(make('h3', '', '亮点演示'), make('span', 'demo-label', '处理过程'));
@@ -362,30 +358,31 @@
     const tabs = make('div', 'demo-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', '亮点演示类型');
     const modes = data.sms ? ['sms'] : data.websocket ? ['websocket'] : data.fullstack ? ['fullstack'] : data.funnel ? ['funnel'] : data.whitelist ? ['whitelist'] : data.index ? ['flow', 'index'] : data.optimization ? ['optimization', 'flow'] : ['flow'];
     modes.forEach((key) => {
-      const tab = make('button', '', key === 'sms' ? '短信接口 / 请求限制' : key === 'websocket' ? 'WebSocket / 连接登记' : key === 'fullstack' ? '独立开发 / 多端适配' : key === 'funnel' ? '业务数据漏斗' : key === 'whitelist' ? '白名单导入' : key === 'index' ? '发布包检索' : key === 'flow' ? data.architecture ? '多微服务' : '业务亮点' : '优化对照'); tab.type = 'button'; tab.dataset.demoMode = key; tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', 'demo-body'); tab.id = `demo-tab-${key}`;
+      const tab = make('button', '', key === 'sms' ? '短信接口 / 请求限制' : key === 'websocket' ? 'WebSocket / 连接登记' : key === 'fullstack' ? '独立开发 / 多端适配' : key === 'funnel' ? '业务数据漏斗' : key === 'whitelist' ? '白名单导入' : key === 'index' ? '发布包检索' : key === 'flow' ? data.architecture ? '多微服务' : '业务亮点' : '优化对照'); tab.type = 'button'; tab.dataset.demoMode = key; tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', `${prefix}-body`); tab.id = `${prefix}-tab-${key}`;
       tab.addEventListener('click', () => selectMode(key)); tab.addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); const next = e.key === 'Home' ? modes[0] : e.key === 'End' ? modes[modes.length - 1] : modes[(modes.indexOf(key) + 1) % modes.length]; selectMode(next); tabs.querySelector(`[data-demo-mode="${next}"]`).focus(); } }); tabs.append(tab);
     });
-    const body = make('div', 'demo-body'); body.id = 'demo-body'; body.setAttribute('role', 'tabpanel');
+    const body = make('div', 'demo-body'); body.id = `${prefix}-body`; body.setAttribute('role', 'tabpanel');
     const controls = make('div', 'demo-controls');
     const prev = make('button', 'demo-prev', '上一步'), play = make('button', 'demo-play', '暂停'), next = make('button', 'demo-next', '下一步'), progress = make('input', 'demo-progress');
     [prev, play, next].forEach(b => b.type = 'button'); progress.type = 'range'; progress.min = 0; progress.step = 1; progress.setAttribute('aria-label', '演示步骤');
     prev.addEventListener('click', () => seek(step - 1)); next.addEventListener('click', () => seek(step + 1)); progress.addEventListener('input', () => seek(Number(progress.value)));
-    play.addEventListener('click', () => { if (step === count() - 1) step = 0; playing = !playing; if (reduced.matches) { seek(Math.min(step + 1, count() - 1)); return; } renderStep(); schedule(); });
+    play.addEventListener('click', () => { if (step === count() - 1) { step = 0;if(mode==='whitelist')whitelistConfirmed=false; } playing = !playing; if (reduced.matches) { seek(Math.min(step + 1, count() - 1)); return; } renderStep(); schedule(); });
     controls.append(prev, play, progress, next); host.append(heading, note, tabs, body, controls);
     selectMode(mode);
     observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting && entries[0].intersectionRatio >= .1; renderStep(); schedule(); }, { root: dialog, threshold: .1 }); observer.observe(host.querySelector('.demo-body'));
   }
   function selectMode(key) {
     generation++; cancelTick(); mode = key;
-    if (key === 'whitelist') { whitelistExisting = new Map(data.whitelist.existing.map(record=>[record.id,record.bits])); whitelistReplay=false; }
+    if (key === 'whitelist') { whitelistExisting = new Map(data.whitelist.existing.map(record=>[record.id,record.bits])); whitelistConfirmed=false; }
     if (key === 'index') indexFilters = { platform: 'Android', version: '1.1' };
     host.querySelectorAll('[data-demo-mode]').forEach(tab => { const active = tab.dataset.demoMode === key; tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1; });
-    host.querySelector('.demo-body').setAttribute('aria-labelledby', `demo-tab-${key}`); buildMode();
+    host.querySelector('.demo-body').setAttribute('aria-labelledby', `${prefix}-tab-${key}`); buildMode();
   }
   function stop() { generation++; cancelTick(); observer?.disconnect(); observer = null; playing = false; visible = false; host?.classList.remove('demo-running'); }
   document.addEventListener('visibilitychange', () => { if (data && host.childElementCount) { renderStep(); schedule(); } });
-  document.addEventListener('spatial-project-ready', () => { if (data) { renderStep(); schedule(); } });
+  document.addEventListener('spatial-project-ready', () => { if (data && dialog.open && host.childElementCount) { renderStep(); schedule(); } });
   document.addEventListener('spatial-pause', event => { if (event.detail && data) { playing = false; cancelTick(); renderStep(); } });
   reduced.addEventListener('change', () => { if (reduced.matches && data) { playing = false; cancelTick(); renderStep(); } });
-  window.HYTEX_DEMOS = { mount, stop, get state() { return { mode, step, playing, timer, visible }; } };
-})();
+  return { mount, stop, get state() { return { mode, step, playing, timer, visible }; } };
+};
+window.HYTEX_DEMOS = window.createProjectDemo(document.querySelector('#project-demo'),document.querySelector('#project-dialog'),document.querySelector('#demo-jump'));

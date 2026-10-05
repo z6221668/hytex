@@ -7,13 +7,16 @@
   <meta name="description" content="HYTEX 的开发经历：Java 后端、Spring 微服务、金融业务与 AI 应用。">
   <title>HYTEX · 开发档案</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./spatial.css?v=17">
+  <link rel="stylesheet" href="./spatial.css?v=19">
+  <link rel="stylesheet" href="./interactive.css?v=23">
   <script src="./resume-data.js" defer></script>
   <script src="./hobbies-data.js" defer></script>
-  <script src="./project-demo-data.js?v=6" defer></script>
-  <script src="./project-demos.js?v=8" defer></script>
-  <script src="./spatial-app.js?v=8" defer></script>
-  <script src="./spatial-scene.js?v=9" type="module"></script>
+  <script src="./project-demo-data.js?v=8" defer></script>
+  <script src="./project-demos.js?v=11" defer></script>
+  <script src="./spatial-app.js?v=10" defer></script>
+  <script src="./interactive-query.js?v=2" defer></script>
+  <script src="./interactive-app.js?v=21" defer></script>
+  <script src="./spatial-scene.js?v=13" type="module"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳至正文</a>
@@ -23,7 +26,7 @@
   <header class="header">
     <a class="brand" href="#intro" aria-label="HYTEX 首页">H<span>.</span><small>HYTEX</small></a>
     <nav aria-label="主导航"><a href="#skills">技术</a><a href="#projects">项目</a><a href="#experience">经历</a><a href="#contact">联系 <span>↗</span></a></nav>
-    <button class="motion-control" id="motion-toggle" aria-pressed="false" aria-label="暂停场景动画"><span class="motion-symbol">Ⅱ</span><span class="motion-word">暂停动画</span></button>
+    <div class="header-actions"><button id="interactive-toggle" class="interactive-toggle" type="button" aria-pressed="false" aria-controls="interactive-room">互动版本<span class="interactive-radar" aria-hidden="true"></span></button><button class="motion-control" id="motion-toggle" aria-pressed="false" aria-label="暂停场景动画"><span class="motion-symbol">Ⅱ</span><span class="motion-word">暂停动画</span></button></div>
   </header>
   <aside class="chapter-rail" aria-label="章节导航">
     <a href="#intro" class="active" aria-label="首页"><span>00</span><i></i></a>
@@ -33,6 +36,16 @@
     <a href="#opensource" aria-label="开源项目"><span>04</span><i></i></a>
     <a href="#contact" aria-label="联系方式"><span>05</span><i></i></a>
   </aside>
+  <section id="interactive-room" hidden aria-label="HYTEX 互动简历">
+    <div id="journey-viewport" tabindex="0" aria-label="向下滚动浏览简历，工作经历与照片可左右拖动"><div class="journey-track"><div id="technology-sheet" class="technology-sheet" aria-label="技术点"></div></div></div>
+    <div class="room-heading"><span id="room-kicker"></span><h2 id="room-title"></h2><p id="room-hint"></p></div>
+    <div id="project-board" class="project-board" hidden aria-label="项目列表"></div>
+    <aside id="project-inline-detail" class="project-inline-detail" hidden aria-label="项目详情"></aside>
+    <div id="technology-lens" class="technology-lens" hidden aria-hidden="true"><div id="lens-copy" class="lens-copy"></div></div>
+    <aside class="room-inspector" id="room-inspector" aria-label="详细内容" hidden><button id="room-panel-toggle" type="button" aria-label="收起说明">×</button><div id="room-content"></div></aside>
+    <p id="journey-scroll-cue" hidden>下滑查看详情 <span>↓</span></p>
+    <div id="journey-gate"><button id="journey-start" type="button">开始</button></div>
+  </section>
   <svg id="career-link" class="career-link" aria-hidden="true"><path/><circle r="3"/><circle r="3"/></svg>
   <main id="main">
     <section class="chapter intro" id="intro" data-chapter="0" aria-labelledby="intro-title">

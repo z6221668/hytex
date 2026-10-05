@@ -3,7 +3,7 @@
   const data = window.RESUME;
   const chapters = [...document.querySelectorAll('[data-chapter]')];
   const dialog = document.querySelector('#project-dialog');
-  const state = { chapter: 0, skill: 1, project: 0, career: 0, filter: 'all', paused: matchMedia('(prefers-reduced-motion: reduce)').matches };
+  const state = { chapter: 0, skill: 1, project: 0, career: 0, filter: 'all', interactive: false, paused: matchMedia('(prefers-reduced-motion: reduce)').matches };
   let opener = null, typingFrame = 0, typingStarted = 0, typingText = '', scrolling = false;
   let careerScrollTarget = null;
   const dispatch = (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail }));
@@ -101,7 +101,7 @@
     document.querySelector('#skill-kind').textContent = skill.kind;
     document.querySelectorAll('[data-skill-index]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.skillIndex) === index)));
     cancelAnimationFrame(typingFrame); document.querySelector('#skill-reading').classList.remove('typing');
-    if (!initial && window.HYTEX_SCENE_READY) { document.querySelector('#skill-description').textContent = ''; dispatch('spatial-select-skill', { index }); }
+    if (!initial && !state.interactive && window.HYTEX_SCENE_READY) { document.querySelector('#skill-description').textContent = ''; dispatch('spatial-select-skill', { index }); }
     else typeDescription(initial || matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
   data.skills.forEach((skill, index) => {
@@ -127,7 +127,7 @@
     document.querySelector('#dialog-work').replaceChildren(...p.details.map(t => el('li', '', t)));
     window.HYTEX_DEMOS.mount(index);
     dialog.classList.remove('detail-ready', 'detail-leaving');
-    const spatial = window.HYTEX_SCENE_READY && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const spatial = !state.interactive && window.HYTEX_SCENE_READY && !matchMedia('(prefers-reduced-motion: reduce)').matches;
     dialog.classList.toggle('spatial-detail', Boolean(spatial));
     dialog.showModal(); dialog.scrollTop = 0; document.body.classList.add('dialog-open'); dispatch('spatial-modal', true);
     if (spatial) dispatch('spatial-project-open', { index });
@@ -241,6 +241,7 @@
   const captions = [ ['BACKEND / AI / PRODUCT', 'Java 后端 · AI 应用 · 跨端开发'], ['JAVA / SPRING / DATA', '点击节点查看技术实践'], ['PROJECT ARCHIVE', '项目描述与负责的工作'], ['2018 — 2026', 'Java 后端开发经历'], ['PARALLEL QUERY', '独立查询，同时执行'], ['KEEP IN TOUCH', '68449317@qq.com'], ['', ''] ];
   function updateChapter() {
     scrolling = false;
+    if (state.interactive) return;
     const probe = innerWidth <= 700 ? 240 : innerHeight * .45;
     let nearest = 0;
     chapters.forEach((s, i) => { if (!s.hidden && s.getBoundingClientRect().top <= probe) nearest = i; });
@@ -277,9 +278,17 @@
   document.addEventListener('spatial-pick-skill', e => selectSkill(e.detail.index));
   document.addEventListener('spatial-skill-released', () => { cancelAnimationFrame(typingFrame); document.querySelector('#skill-reading').classList.remove('typing'); document.querySelector('#skill-reading').classList.add('released'); document.querySelector('#skill-description').textContent = '点击技术名称查看说明。'; });
   document.addEventListener('spatial-skill-arrived', e => { if (e.detail.index === state.skill) typeDescription(matchMedia('(prefers-reduced-motion: reduce)').matches); });
-  document.addEventListener('spatial-pick-project', e => showProject(e.detail.index, document.querySelector('#archive-open')));
+  document.addEventListener('spatial-pick-project', e => showProject(e.detail.index, state.interactive?document.querySelector('#resume-scene'):document.querySelector('#archive-open')));
   document.addEventListener('spatial-select-project', e => { if (state.chapter === 2) document.querySelector('#scene-caption-title').textContent = data.projects[e.detail.index].title; });
   document.addEventListener('spatial-renderer-fallback', () => { window.HYTEX_SCENE_READY = false; document.body.classList.add('no-webgl'); typeDescription(true); });
-  window.HYTEX_SPATIAL = { state, selectSkill, selectProject, showProject };
+  function focusChapter(index) {
+    if (!chapters[index]) return;
+    state.chapter=index;document.body.dataset.chapter=index;
+    document.querySelector('#scene-caption-kicker').textContent=captions[index][0];
+    document.querySelector('#scene-caption-title').textContent=captions[index][1];
+    document.querySelector('.archive-controls').classList.toggle('visible',!state.interactive&&index===2);
+    dispatch('spatial-chapter',{index});
+  }
+  window.HYTEX_SPATIAL = { state, selectSkill, selectProject, selectCareer, showProject, focusChapter, refreshChapter: updateChapter };
   updateChapter();
 })();
