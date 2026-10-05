@@ -110,3 +110,6 @@ body:has(#motion-toggle[aria-pressed="true"]) .interactive-radar{animation-play-
 @media(max-width:700px){.project-board{height:auto;bottom:calc(20px + env(safe-area-inset-bottom));grid-template-rows:repeat(7,minmax(52px,1fr))}.project-inline-detail{display:none}.mobile-project-highlights{margin:24px 0;border-block:1px solid #383838}.mobile-project-highlights>summary{padding:16px 0;font-size:14px;color:#ddd;cursor:pointer}.mobile-project-highlights .interactive-highlight-demo{margin-bottom:20px}}
 
 #interactive-room[data-chapter='6'] #journey-viewport{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+
+/* The exhibition routes single-finger gestures; native dialogs keep native scrolling. */
+#interactive-room.started #journey-viewport,#interactive-room.started :is(.technology-sheet,.tech-tile,.project-board,.project-flight-row,.project-inline-detail,.career-index,.career-word,.room-inspector,.query-exhibit,.contact-email,.contact-actions a,.contact-actions button){touch-action:pinch-zoom}

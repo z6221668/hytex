@@ -112,16 +112,17 @@
       }
     });return lines;
   }
-  function measurePageText(){
+  function measurePageText(notify=true){
     textLayoutFrame=0;if(!active||!started)return;
     room.style.setProperty('--mobile-content-top',`${room.querySelector('.room-heading').getBoundingClientRect().bottom+18}px`);
     if(current===1){sheet.style.top=`${room.querySelector('.room-heading').getBoundingClientRect().bottom+34}px`;}
     if(current===2)measureProjectTargets();
     if(current===3)emit('exhibition-career-layout',{railY:careerIndex.getBoundingClientRect().bottom+12});
-    emit('exhibition-text-target',{index:current,revision:textRevision,labels:captureText(current)});
+    if(notify!==false)emit('exhibition-text-target',{index:current,revision:textRevision,labels:captureText(current)});
   }
   function schedulePageText(){if(!textLayoutFrame)textLayoutFrame=requestAnimationFrame(measurePageText);}
-  window.addEventListener('resize',()=>{if(active&&started){textRevision++;room.classList.add('particle-arriving');schedulePageText();}});
+  let textViewportWidth=innerWidth;
+  window.addEventListener('resize',()=>{const widthChanged=innerWidth!==textViewportWidth;textViewportWidth=innerWidth;if(active&&started){if(!widthChanged&&!room.classList.contains('particle-arriving')){measurePageText(false);return;}textRevision++;room.classList.add('particle-arriving');schedulePageText();}});
   document.addEventListener('exhibition-career-position',e=>{careerStrip.style.setProperty('--career-index',RESUME.experience.length-1-e.detail.value);});
   document.addEventListener('exhibition-text-ready',e=>{
     if(e.detail.index!==current||e.detail.revision!==textRevision)return;
@@ -180,23 +181,41 @@
     }
     if(Math.abs(remaining)>=.5)viewport.scrollTop+=remaining;
   }
-  // Overlay panels are siblings of the scroll viewport: touch needs explicit chaining too.
-  let panelTouch=null;
+  // One touch owner for the whole exhibition, including fixed overlay panels.
+  let panelTouch=null,touchCoast=0;
+  function stopTouchScroll(){if(touchCoast)cancelAnimationFrame(touchCoast);touchCoast=0;panelTouch=null;}
   room.addEventListener('touchstart',e=>{
-    panelTouch=null;
-    if(!active||!started||introLocked||e.touches.length!==1||viewport.contains(e.target))return;
-    const t=e.touches[0];panelTouch={target:e.target,x:t.clientX,y:t.clientY,lastY:t.clientY,axis:null};
+    stopTouchScroll();
+    if(!active||!started||introLocked||e.touches.length!==1)return;
+    const t=e.touches[0];panelTouch={target:e.target,chapter:current,x:t.clientX,y:t.clientY,lastY:t.clientY,lastTime:performance.now(),velocity:0,axis:null,horizontal:current===6||!!e.target.closest('.career-index')};
   },{passive:true});
   room.addEventListener('touchmove',e=>{
-    if(!panelTouch||e.touches.length!==1||!e.cancelable)return;
-    const t=e.touches[0],dx=t.clientX-panelTouch.x,dy=t.clientY-panelTouch.y;
-    if(!panelTouch.axis&&Math.hypot(dx,dy)>7)panelTouch.axis=Math.abs(dy)>=Math.abs(dx)?'y':'x';
+    if(e.touches.length!==1){stopTouchScroll();return;}
+    if(!panelTouch||!e.cancelable)return;
+    // Prevent browser scrolling before its direction threshold cancels our pointer stream.
+    e.preventDefault();
+    const t=e.touches[0],dx=t.clientX-panelTouch.x,dy=t.clientY-panelTouch.y,now=performance.now();
+    if(!panelTouch.axis&&Math.hypot(dx,dy)>7)panelTouch.axis=panelTouch.horizontal&&Math.abs(dx)>Math.abs(dy)*1.2?'x':'y';
     if(panelTouch.axis!=='y')return;
-    e.preventDefault();stopHold();suppressClick=true;
-    scrollFrom(panelTouch.target,panelTouch.lastY-t.clientY);panelTouch.lastY=t.clientY;
+    stopHold();suppressClick=true;
+    const delta=panelTouch.lastY-t.clientY;
+    const target=panelTouch.chapter===current?panelTouch.target:viewport;
+    scrollFrom(target,delta);
+    panelTouch.velocity=delta/Math.max(8,now-panelTouch.lastTime);panelTouch.lastY=t.clientY;panelTouch.lastTime=now;
   },{passive:false});
-  room.addEventListener('touchend',()=>{panelTouch=null;},{passive:true});
-  room.addEventListener('touchcancel',()=>{panelTouch=null;},{passive:true});
+  room.addEventListener('touchend',()=>{
+    const gesture=panelTouch;panelTouch=null;
+    if(!gesture||gesture.axis!=='y'||performance.now()-gesture.lastTime>100||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    let velocity=Math.max(-1.6,Math.min(1.6,gesture.velocity)),previous=performance.now(),elapsed=0;
+    const coast=now=>{touchCoast=0;if(!active||introLocked||document.querySelector('dialog[open]'))return;const dt=Math.min(32,Math.max(0,now-previous));previous=now;elapsed+=dt;
+      scrollFrom(gesture.chapter===current?gesture.target:viewport,velocity*dt);velocity*=Math.exp(-dt/110);
+      if(Math.abs(velocity)>.03&&elapsed<650)touchCoast=requestAnimationFrame(coast);
+    };
+    if(Math.abs(velocity)>.08)touchCoast=requestAnimationFrame(coast);
+  },{passive:true});
+  room.addEventListener('touchcancel',stopTouchScroll,{passive:true});
+  window.addEventListener('blur',stopTouchScroll);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTouchScroll();});
+  document.addEventListener('spatial-modal',e=>{if(e.detail)stopTouchScroll();});
   document.addEventListener('wheel',e=>{
     if(active&&introLocked&&!e.ctrlKey){if(e.cancelable)e.preventDefault();return;}
     if(!active||!started||e.ctrlKey||document.querySelector('dialog[open]')||!e.cancelable||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;
@@ -205,7 +224,8 @@
     e.preventDefault();
   },{passive:false});
   viewport.addEventListener('scroll',()=>{if(!scrollFrame)scrollFrame=requestAnimationFrame(syncScroll);},{passive:true});
-  window.addEventListener('resize',()=>{if(active&&started){viewport.scrollTop=stops[current]*innerHeight;syncScroll();}});
+  let scrollViewportHeight=innerHeight;
+  window.addEventListener('resize',()=>{const progress=viewport.scrollTop/scrollViewportHeight;scrollViewportHeight=innerHeight;if(active&&started){viewport.scrollTop=progress*scrollViewportHeight;syncScroll();}});
   function begin(){
     if(started||$('journey-start').disabled)return;started=true;introLocked=true;room.classList.add('intro-running');viewport.scrollTop=0;room.classList.add('started');document.body.classList.add('journey-started');gate.classList.add('leaving');
     const start=$('journey-start'),range=document.createRange();range.selectNodeContents(start);const bounds=range.getBoundingClientRect(),style=getComputedStyle(start);
@@ -222,7 +242,7 @@
   function setMode(value){
     if(document.querySelector('dialog[open]'))return;
     if(value&&!window.HYTEX_SCENE_READY){setToggleLabel(document.body.classList.contains('no-webgl')?'当前设备使用阅读版':'场景加载中');return;}
-    active=value;api.state.interactive=value;toggle.setAttribute('aria-pressed',String(value));setToggleLabel(value?'阅读版本':'互动版本');cancelGesture();introLocked=false;room.classList.remove('intro-running');
+    stopTouchScroll();active=value;api.state.interactive=value;toggle.setAttribute('aria-pressed',String(value));setToggleLabel(value?'阅读版本':'互动版本');cancelGesture();introLocked=false;room.classList.remove('intro-running');
     canvas.parentNode.setAttribute('aria-hidden',String(!value));
     if(value){savedScroll=scrollY;started=false;room.hidden=false;main.hidden=true;document.body.classList.add('interactive-mode');document.body.classList.remove('journey-started');room.classList.remove('started');gate.hidden=false;gate.classList.remove('leaving');cue.hidden=true;viewport.scrollTop=0;emit('spatial-interactive-mode',{active:true});updateChapter(0);const start=$('journey-start');start.disabled=false;start.focus({preventScroll:true});}
     else{queryView.setActive(false);room.hidden=true;main.hidden=false;document.body.classList.remove('interactive-mode','journey-started');hideLens();emit('spatial-interactive-mode',{active:false});window.scrollTo({top:savedScroll,behavior:'instant'});api.refreshChapter();toggle.focus({preventScroll:true});}
@@ -264,7 +284,7 @@
     if(!started)return;if(!drag||drag.id!==e.pointerId)return;
     const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY;
     if(Math.hypot(dx,dy)>7){suppressClick=true;stopHold();}
-    if(Math.abs(dx)>Math.abs(dy)&&(current===3||current===6)&&!e.target.closest('.room-inspector')){yaw+= (e.clientX-drag.x)*(current===3?.004:.012);emit('exhibition-view',{yaw,pitch,zoom});}
+    if((!panelTouch||panelTouch.axis==='x')&&Math.abs(dx)>Math.abs(dy)&&(current===3||current===6)&&!e.target.closest('.room-inspector')){yaw+= (e.clientX-drag.x)*(current===3?.004:.012);emit('exhibition-view',{yaw,pitch,zoom});}
     drag.x=e.clientX;drag.y=e.clientY;
   });
   function release(e){
