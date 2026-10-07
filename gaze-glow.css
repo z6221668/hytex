@@ -1,0 +1,57 @@
+.gaze-controls{position:fixed;right:24px;bottom:22px;z-index:45;display:none;align-items:center;gap:12px;color:#aaa;font:12px/1.6 sans-serif}
+.interactive-mode.journey-started .gaze-controls.enabled,.interactive-mode.journey-started .gaze-controls.has-status{display:flex}
+.gaze-controls:not(.enabled) button{display:none}
+.gaze-controls button,.gaze-dialog button{border:1px solid #555;background:#151515;color:#ddd;border-radius:24px;padding:10px 16px;cursor:pointer;font:inherit}
+.gaze-controls button:focus-visible,.gaze-dialog button:focus-visible{outline:2px solid #fff;outline-offset:4px}
+.gaze-controls button[aria-pressed=true]{border-color:#aaa;color:#fff}
+.gaze-status{max-width:260px;text-align:right}
+.gaze-glow{position:fixed;inset:0;overflow:hidden;z-index:3;pointer-events:none;opacity:0;transition:opacity .65s cubic-bezier(.22,1,.36,1)}
+.gaze-glow-orb{position:absolute;left:0;top:0;width:920px;height:920px;background:radial-gradient(circle 460px at center,#ffffff24 0%,#ffffff1b 20%,#fafcff0f 40%,#f5f8ff05 65%,transparent 94%);will-change:transform}
+/* Separate the bright core from the broad spill, so the edge disappears gradually. */
+.gaze-glow-orb::before{content:'';position:absolute;inset:0;background:radial-gradient(circle 210px at center,#ffffff68 0%,#ffffff42 18%,#ffffff1b 42%,#ffffff07 68%,transparent 100%);opacity:.9;animation:gaze-core-breathe 4.8s ease-in-out infinite paused}
+.gaze-glow.visible .gaze-glow-orb::before{animation-play-state:running}
+.gaze-glow.travelling .gaze-glow-orb::before{animation-play-state:paused}
+@keyframes gaze-core-breathe{0%,100%{opacity:.84}50%{opacity:1}}
+
+.gaze-glow.visible{opacity:1}
+.gaze-frame{position:fixed;inset:0;width:100%;height:100%;border:0;opacity:0;pointer-events:none;z-index:-1}
+.gaze-dialog{box-sizing:border-box;position:fixed;inset:0;width:min(440px,calc(100vw - 32px));max-width:none;max-height:calc(100dvh - 32px);margin:auto;padding:28px;background:#111;color:#ddd;border:1px solid #383838;font:14px/1.8 sans-serif}
+.gaze-dialog::backdrop{background:#000b}
+.gaze-dialog h2{font-size:22px;margin:0 0 12px;color:#eee}
+.gaze-dialog p{color:#aaa;margin:12px 0}
+.gaze-dialog-actions{display:flex;gap:12px;margin-top:24px;justify-content:flex-end}
+.gaze-dialog.calibrating{width:100vw;height:100dvh;max-height:none;margin:0;padding:0;border:0;background:transparent;overflow:hidden}
+.gaze-calibration-copy{z-index:5;position:absolute;top:22%;left:15%;right:15%;text-align:center;pointer-events:none}
+.gaze-calibration-copy p{font-size:13px}
+.gaze-calibration-cancel{z-index:5;position:absolute;bottom:22%;left:50%;transform:translateX(-50%)}
+@media(max-width:600px){.gaze-controls{right:16px;bottom:16px;left:16px;justify-content:flex-end;gap:8px}.gaze-status{font-size:10px;max-width:180px}.gaze-controls button{white-space:nowrap}.gaze-calibration-copy{left:10%;right:10%;top:24%}}
+@media(prefers-reduced-motion:reduce){.gaze-glow{transition:none}}
+
+.gaze-dwell-indicator{position:fixed;z-index:100;pointer-events:none;border:1px solid #dce8ffbb;border-radius:16px;background:linear-gradient(#dce8ff,#dce8ff) left bottom/var(--dwell-progress,0%) 3px no-repeat;box-shadow:0 0 18px #dce8ff22}
+.gaze-dwell-indicator[hidden]{display:none}
+.gaze-dwell-indicator span{position:absolute;right:0;bottom:calc(100% + 7px);padding:3px 8px;border-radius:12px;background:#171b23;color:#e4ecfa;white-space:nowrap;font:11px/1.6 sans-serif}
+
+.gaze-dwell-indicator::after{content:'';position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:#e4ecfa;opacity:.7}
+.gaze-dwell-indicator.paused{border-style:dashed;opacity:.65}
+.gaze-dwell-indicator.label-below span{bottom:auto;top:calc(100% + 7px)}
+
+.gaze-dialog.calibrating::backdrop{background:transparent}
+.gaze-calibration-shade{position:absolute;inset:0;background:#090909;opacity:1;transition:opacity 1.1s ease}
+.gaze-dialog.calibrating .gaze-glow{z-index:2}
+.gaze-calibration-copy,.gaze-calibration-cancel{transition:opacity .4s ease}
+.gaze-dialog.revealing .gaze-calibration-shade,.gaze-dialog.revealing .gaze-calibration-copy,.gaze-dialog.revealing .gaze-calibration-cancel{opacity:0;pointer-events:none}
+.gaze-dialog.calibrating:not(.revealing) .gaze-glow-orb{background:radial-gradient(circle 270px at center,#ffffff20 0%,#ffffff10 32%,#ffffff04 65%,transparent 100%)}
+.gaze-dialog.calibrating:not(.revealing) .gaze-glow-orb::before{background:radial-gradient(circle 140px at center,#ffffffaa 0%,#ffffff6b 17%,#ffffff29 40%,#ffffff08 68%,transparent 100%);animation:gaze-calibration-breathe 2.6s cubic-bezier(.45,0,.55,1) infinite}
+.gaze-dialog.calibrating:not(.revealing) .gaze-glow-orb::after{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle 240px at center,#ffffff1d 0%,#ffffff0d 28%,#ffffff04 55%,transparent 100%);animation:gaze-breathe 2.6s cubic-bezier(.45,0,.55,1) infinite}
+.gaze-dialog.calibrating .gaze-glow.travelling .gaze-glow-orb::before{animation-play-state:paused}
+.gaze-glow.travelling .gaze-glow-orb::after{animation-play-state:paused!important}
+.gaze-dialog.calibrating:not(.revealing) .gaze-glow.waiting{opacity:.55}
+@keyframes gaze-calibration-breathe{0%,100%{transform:scale(.76);opacity:.42}50%{transform:scale(1.08);opacity:1}}
+@keyframes gaze-breathe{0%,100%{transform:scale(.72);opacity:.2}50%{transform:scale(1.12);opacity:.9}}
+@media(prefers-reduced-motion:reduce){.gaze-calibration-shade,.gaze-calibration-copy,.gaze-calibration-cancel{transition:none}.gaze-dialog .gaze-glow-orb::after{animation:none!important}}
+
+@media(prefers-reduced-motion:reduce){.gaze-glow-orb::before{animation:none!important;opacity:.92}}
+
+.gaze-scroll-indicator{position:fixed;z-index:100;left:50%;bottom:80px;transform:translateX(-50%);padding:9px 18px 11px;border:1px solid #ffffff38;border-radius:20px;background:linear-gradient(#eee,#eee) left bottom/var(--edge-progress,0%) 2px no-repeat,#151515e8;color:#ddd;font:12px/1.5 sans-serif;white-space:nowrap;pointer-events:none}
+.gaze-scroll-indicator.at-top{top:80px;bottom:auto}
+.gaze-scroll-indicator[hidden]{display:none}

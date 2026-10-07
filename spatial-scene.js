@@ -1,5 +1,5 @@
 import * as THREE from './assets/vendor/three.module.js';
-import { createExhibition } from './interactive-scene.js?v=5';
+import { createExhibition } from './interactive-scene.js?v=6';
 
 const data = window.RESUME;
 const canvas = document.querySelector('#resume-scene');

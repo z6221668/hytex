@@ -26,11 +26,11 @@
     }else detail.close();
   }
   detail.addEventListener('cancel',e=>{e.preventDefault();closeDetail();});
-  detail.addEventListener('close',()=>{highlightDemo.stop();detail.classList.remove('detail-ready');emit('spatial-modal',false);dialogOpener?.focus({preventScroll:true});detail.replaceChildren();});
+  detail.addEventListener('close',()=>{if(detail.open)return;highlightDemo.stop();detail.classList.remove('detail-ready');emit('spatial-modal',false);dialogOpener?.focus({preventScroll:true});detail.replaceChildren();});
   detail.addEventListener('click',e=>{if(e.target===detail){const r=detail.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeDetail();}});
   function makeTags(values){const g=node('div','exhibit-tags');values.forEach(v=>g.append(node('span','',v)));return g;}
   function showDetail(isPhoto,index){
-    if(detail.open)return;dialogOpener=document.activeElement;detail.removeAttribute('aria-labelledby');detail.classList.remove('is-highlight');detail.classList.toggle('is-photo',isPhoto);
+    if(detail.open)return;detail.replaceChildren();dialogOpener=document.activeElement;detail.removeAttribute('aria-labelledby');detail.classList.remove('is-highlight');detail.classList.toggle('is-photo',isPhoto);
     const close=node('button','exhibit-close','关闭 ×');close.type='button';close.addEventListener('click',closeDetail);detail.append(close);
     if(isPhoto){const p=HYTEX_HOBBIES.photos[index],image=node('img','exhibit-full-photo');image.src=p.src;image.alt=p.alt;detail.append(image,node('p','exhibit-photo-caption',p.caption));}
     else{
@@ -66,7 +66,7 @@
     if(current===3){const e=RESUME.experience[selection];section.append(node('p','exhibit-period',e.period),node('h2','',e.company),node('p','exhibit-subtitle',e.role),node('p','',e.description),makeTags(e.tags));}
     if(current===4){section.append(node('h2','','开源项目'),node('p','','将独立只读查询提交到 Java 21 虚拟线程，使用 Future 取得结果并汇总返回。'));const stages=node('ol','exhibit-query-stages');['提交用户、订单、账户查询','三项任务独立执行','Future 取得结果','组合成接口响应'].forEach(t=>stages.append(node('li','',t)));section.append(stages);const code=node('pre','exhibit-code','var user = tasks.submit(this::queryUser);\nvar orders = tasks.submit(this::queryOrders);\nvar account = tasks.submit(this::queryAccount);\nreturn combine(tasks.await(user), tasks.await(orders), tasks.await(account));');section.append(code);const a=node('a','exhibit-link','查看源码 ↗');a.href='https://github.com/z6221668/parallel_query';a.target='_blank';a.rel='noopener noreferrer';section.append(a);}
     if(current===5){section.append(node('h2','','邮箱联系'));const a=node('a','exhibit-mail','68449317@qq.com');a.href='mailto:68449317@qq.com';section.append(a);const copy=node('button','exhibit-link','复制邮箱');copy.type='button';copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText('68449317@qq.com');copy.textContent='已复制';}catch{copy.textContent='请选中邮箱复制';}});section.append(copy);}
-    if(current===6){const p=HYTEX_HOBBIES.photos[selection];section.append(node('h2','',p.caption));const image=node('img','exhibit-thumbnail');image.src=p.src;image.alt=p.alt;section.append(image);const b=node('button','exhibit-link','让照片显影 ↗');b.type='button';b.addEventListener('click',activate);section.append(b);}
+    if(current===6&&selection<HYTEX_HOBBIES.photos.length){const p=HYTEX_HOBBIES.photos[selection];section.append(node('h2','',p.caption));const image=node('img','exhibit-thumbnail');image.src=p.src;image.alt=p.alt;section.append(image);const b=node('button','exhibit-link','让照片显影 ↗');b.type='button';b.addEventListener('click',activate);section.append(b);}
     panel.replaceChildren(section);panel.scrollTop=0;
   }
 
@@ -91,6 +91,15 @@
   const careerIndex=node('div','career-index'),careerStrip=node('div','career-strip');careerIndex.hidden=true;careerIndex.setAttribute('aria-label','按时间排列的公司经历');
   [...RESUME.experience].reverse().forEach((experience,order)=>{const index=RESUME.experience.length-1-order,button=node('button','career-word');button.type='button';button.dataset.company=index;button.append(node('span','career-year',experience.period.slice(0,4)),node('span','career-company',experience.shortCompany),node('span','career-role',experience.role));button.addEventListener('click',()=>{if(suppressClick||holdActivated){suppressClick=false;holdActivated=false;return;}choose(index);});careerStrip.append(button);});careerIndex.append(careerStrip);room.append(careerIndex);
   const photoLabel=node('p','photo-index-caption');photoLabel.hidden=true;room.append(photoLabel);
+  const eggIndex=HYTEX_HOBBIES.photos.length;
+  const eggMenu=node('nav','photo-easter-menu');eggMenu.hidden=true;eggMenu.setAttribute('aria-label','摄影彩蛋菜单');
+  const eggButton=node('button','photo-easter-button');eggButton.type='button';eggButton.setAttribute('aria-label','打开彩蛋：视线光晕');
+  eggButton.innerHTML='<span class="hatching-egg" aria-hidden="true"><span class="egg-shadow"></span><span class="egg-body"><span class="egg-light"></span><span class="egg-shell egg-shell-bottom"></span><span class="egg-shell egg-shell-top"></span></span></span><span class="egg-menu-title">视线光晕 <span aria-hidden="true">↗</span></span><span class="egg-menu-hint">隐藏交互 · 点击唤醒</span>';
+  eggButton.addEventListener('click',()=>{stopHold();emit('gaze-open');});
+  eggButton.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();choose((selection+(e.key==='ArrowRight'?1:-1)+eggIndex+1)%(eggIndex+1));viewport.focus({preventScroll:true});}});
+  eggMenu.append(eggButton);room.append(eggMenu);
+  document.addEventListener('exhibition-egg-position',e=>{const {x,y,scale,visible,paused}=e.detail;eggMenu.hidden=!active||!started||current!==6||!visible;if(eggMenu.hidden)return;eggMenu.style.transform=`translate3d(${x}px,${y}px,0) translate(-50%,-50%) scale(${scale})`;eggMenu.classList.toggle('motion-paused',paused);});
+
   function textElements(index){
     const heading=index===0||index===5?[]:[...room.querySelectorAll('.room-heading > *')];
     const selectors={1:'.tech-name,.tech-group-label,.tech-toggle',2:'.project-row-number,.project-row-title',3:'.career-year,.career-company,.career-role',4:'.query-diagram-head span,.query-task,.query-result,.query-collected span,.query-output,.query-footnote,.query-code-caption,.query-code-line i,.query-code-line code,.query-status,.query-controls > *',5:'.contact-kicker,.contact-email,.contact-actions > *,.contact-signature',6:'.photo-index-caption'};
@@ -148,12 +157,12 @@
   document.addEventListener('exhibition-project-arrived',e=>{if(current!==2||room.classList.contains('particle-arriving'))return;const button=projectButtons[e.detail.index];button.classList.add('arrived');button.disabled=false;if(e.detail.index===0&&innerWidth>700&&projectDefaultPending&&!room.classList.contains('particle-arriving'))showProjectInline(0);});
   window.addEventListener('resize',measureProjectTargets);
   function reveal(value){inspector.hidden=!value;room.classList.toggle('show-content',value);}
-  function choose(index,play=false){stopHold();if(current===2&&play){showProjectInline(index);return;}selection=index;if(current===6)photoLabel.textContent=HYTEX_HOBBIES.photos[index].caption;gather=0;renderContent();emit('exhibition-select',{index});if(play)activate();}
-  function activate(){if(current===5)return;if(current===4){queryView.replay();return;}if(!active||!started||document.querySelector('dialog[open]'))return;reveal(false);emit('exhibition-action',{index:selection});}
+  function choose(index,play=false){stopHold();if(current===2&&play){showProjectInline(index);return;}selection=index;if(current===6)photoLabel.textContent=HYTEX_HOBBIES.photos[index]?.caption||'彩蛋 · 视线光晕';gather=0;renderContent();emit('exhibition-select',{index});if(play)activate();}
+  function activate(){if(current===6&&selection===eggIndex){if(active&&started&&!document.querySelector('dialog[open]'))emit('gaze-open');return;}if(current===5)return;if(current===4){queryView.replay();return;}if(!active||!started||document.querySelector('dialog[open]'))return;reveal(false);emit('exhibition-action',{index:selection});}
   function updateChapter(index){
     cancelGesture();
     if(started)emit('exhibition-text-source',{index:current,labels:captureText(current)});textRevision++;room.classList.toggle('particle-arriving',started);
-    queryView.setActive(index===4,true);contact.hidden=index!==5;careerIndex.hidden=index!==3;photoLabel.hidden=index!==6;if(index===3)careerStrip.style.setProperty('--career-index','0');if(index===6)photoLabel.textContent=HYTEX_HOBBIES.photos[0].caption;copyStatus.textContent='';current=index;selection=index===1?1:index===3?3:0;gather=0;yaw=pitch=0;zoom=1;reveal(false);stopHold();
+    eggMenu.hidden=true;queryView.setActive(index===4,true);contact.hidden=index!==5;careerIndex.hidden=index!==3;photoLabel.hidden=index!==6;if(index===3)careerStrip.style.setProperty('--career-index','0');if(index===6)photoLabel.textContent=HYTEX_HOBBIES.photos[0].caption;copyStatus.textContent='';current=index;selection=index===1?1:index===3?3:0;gather=0;yaw=pitch=0;zoom=1;reveal(false);stopHold();
     room.classList.toggle('tech-forming',index===1);sheet.hidden=index!==1;if(index===1){sheet.classList.remove('tech-ready');sheet.scrollTop=0;sheet.querySelectorAll('.tech-description').forEach(n=>n.hidden=true);techTiles.forEach(b=>{b.setAttribute('aria-expanded','false');b.lastChild.textContent='+';});}projectBoard.hidden=index!==2;projectDetail.hidden=true;projectAnimation?.cancel();if(index===2){projectDefaultPending=innerWidth>700;projectButtons.forEach(b=>{b.disabled=true;b.classList.remove('arrived','selected');b.setAttribute('aria-expanded','false');});requestAnimationFrame(measureProjectTargets);}room.dataset.chapter=index;$('room-kicker').textContent=scenes[index][0];$('room-title').textContent=scenes[index][1];$('room-hint').textContent=index===2&&innerWidth<=700?'点击项目，查看详情。':scenes[index][2];
     hideLens();renderContent();textElements(index).forEach(element=>element.dataset.particleText='');emit('exhibition-chapter',{index});if(started)schedulePageText();
   }
@@ -269,10 +278,10 @@
       if(active&&!started)start.focus({preventScroll:true});
     }
   });$('room-panel-toggle').addEventListener('click',()=>reveal(false));
-  function startHold(){if(current!==6||holdTimer)return;gather=0;const t=performance.now();holdTimer=setInterval(()=>{gather=Math.min(1,(performance.now()-t)/1400);emit('exhibition-gather',{value:gather});if(gather>=1){stopHold();holdActivated=true;activate();}},35);}
+  function startHold(){if(current!==6||holdTimer||selection===eggIndex)return;gather=0;const t=performance.now();holdTimer=setInterval(()=>{gather=Math.min(1,(performance.now()-t)/1400);emit('exhibition-gather',{value:gather});if(gather>=1){stopHold();holdActivated=true;activate();}},35);}
   function stopHold(){if(holdTimer){clearInterval(holdTimer);holdTimer=null;}}
   document.addEventListener('exhibition-picked',e=>{if(!active)return;choose(e.detail.index,current!==6);if(current===6&&e.detail.hold)startHold();});
-  document.addEventListener('exhibition-preview',e=>{selection=e.detail.index;renderContent();if(current===3&&!room.classList.contains('particle-arriving'))reveal(true);if(current===6)photoLabel.textContent=HYTEX_HOBBIES.photos[selection].caption;});
+  document.addEventListener('exhibition-preview',e=>{selection=e.detail.index;renderContent();if(current===3&&!room.classList.contains('particle-arriving'))reveal(true);if(current===6)photoLabel.textContent=HYTEX_HOBBIES.photos[selection]?.caption||'彩蛋 · 视线光晕';});
   document.addEventListener('exhibition-complete',e=>{if(!active||e.detail.chapter!==current)return;if(current===2)showProjectInline(e.detail.index);else if(current===6)showDetail(true,e.detail.index);else if(current!==0&&current!==4&&current!==5)reveal(true);});
   // The scroll surface handles native vertical scrolling; horizontal drags manipulate objects.
   room.addEventListener('pointerdown',e=>{
@@ -293,7 +302,7 @@
   }
   room.addEventListener('pointerup',release);room.addEventListener('pointercancel',cancelGesture);viewport.addEventListener('lostpointercapture',()=>{if(drag)cancelGesture();});
   viewport.addEventListener('click',e=>{if(!started||e.target.closest('button,a,input'))return;if(suppressClick||holdActivated){suppressClick=false;holdActivated=false;return;}emit('exhibition-hit',{x:e.clientX,y:e.clientY});});
-  viewport.addEventListener('keydown',e=>{if(e.target!==viewport||!started||e.repeat)return;if(e.key==='Enter'||e.key===' '){if([2,4,5,6].includes(current)){e.preventDefault();if(current===6)startHold();else activate();}}if(e.key==='ArrowLeft'||e.key==='ArrowRight'){if(current===3){e.preventDefault();choose(Math.max(0,Math.min(RESUME.experience.length-1,selection+(e.key==='ArrowRight'?-1:1))));}else if(current===6){e.preventDefault();const count=HYTEX_HOBBIES.photos.length;choose((selection+(e.key==='ArrowRight'?1:-1)+count)%count);}}});
+  viewport.addEventListener('keydown',e=>{if(e.target!==viewport||!started||e.repeat)return;if(e.key==='Enter'||e.key===' '){if([2,4,5,6].includes(current)){e.preventDefault();if(current===6&&selection!==eggIndex)startHold();else activate();}}if(e.key==='ArrowLeft'||e.key==='ArrowRight'){if(current===3){e.preventDefault();choose(Math.max(0,Math.min(RESUME.experience.length-1,selection+(e.key==='ArrowRight'?-1:1))));}else if(current===6){e.preventDefault();const count=HYTEX_HOBBIES.photos.length+1;choose((selection+(e.key==='ArrowRight'?1:-1)+count)%count);}}});
   viewport.addEventListener('keyup',()=>{if(gather<1)stopHold();});
   function cancelGesture(){const id=drag?.id;drag=null;stopHold();holdActivated=false;suppressClick=true;gather=0;emit('exhibition-gather',{value:0});emit('exhibition-cancel');if(id!==undefined&&viewport.hasPointerCapture(id))viewport.releasePointerCapture(id);}
   window.addEventListener('blur',cancelGesture);document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelGesture();});
