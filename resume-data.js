@@ -24,8 +24,8 @@ window.RESUME = {
   ],
   experience: [
     { period: '2025.04 — 2026.01', company: '上海折耳根信息科技有限公司', shortCompany: '折耳根信息', accent: '#238c79', role: 'Java 开发工程师', description: '负责数据中台基础服务与 C 端应用后端开发，参与服务治理、缓存与异步处理改造，接入 AI 模型 API。', tags: ['数据中台', 'AI 应用', '性能优化'] },
-    { period: '2022.03 — 2025.03', company: '上海珑刻得网络科技有限公司重庆分公司', shortCompany: '珑刻得网络 · 重庆', accent: '#527fb9', role: '高级后端研发工程师', description: '负责贷超流量平台开发与优化、中心系统及 SaaS 平台对接，参与架构设计、核心功能实现与技术文档建设。', tags: ['金融业务', '微服务', '系统集成'] },
-    { period: '2020.06 — 2022.02', company: '重庆魔法小文豪科技有限公司', shortCompany: '魔法小文豪', accent: '#b57f42', role: '高级后端研发工程师', description: '负责 APP 后端与管理系统，协同移动端开发；同时参与 Electron 桌面应用与 Flutter 前端，积累完整产品研发经验。', tags: ['APP 后端', 'Flutter', 'Electron'] },
-    { period: '2018.10 — 2020.05', company: '杭州函木科技有限公司', shortCompany: '函木科技', accent: '#b97160', role: '高级后端研发工程师', description: '参与影楼 CRM / ERP 系统的持续迭代、新项目主导开发与服务器维护，承担项目管理及开发组长职责。', tags: ['CRM / ERP', '项目推进', '团队协作'] }
+    { period: '2022.03 — 2025.03', company: '上海珑刻得网络科技有限公司重庆分公司', shortCompany: '珑刻得网络 · 重庆', accent: '#527fb9', role: 'Java 开发工程师', description: '负责贷超流量平台开发与优化、中心系统及 SaaS 平台对接，参与架构设计、核心功能实现与技术文档建设。', tags: ['金融业务', '微服务', '系统集成'] },
+    { period: '2020.06 — 2022.02', company: '重庆魔法小文豪科技有限公司', shortCompany: '魔法小文豪', accent: '#b57f42', role: '全栈工程师', description: '负责 APP 后端与管理系统，协同移动端开发；同时参与 Electron 桌面应用与 Flutter 前端，积累完整产品研发经验。', tags: ['APP 后端', 'Flutter', 'Electron'] },
+    { period: '2018.10 — 2020.05', company: '杭州函木科技有限公司', shortCompany: '函木科技', accent: '#b97160', role: 'Java 开发工程师', description: '参与影楼 CRM / ERP 系统的持续迭代、新项目主导开发与服务器维护，承担项目管理及开发组长职责。', tags: ['CRM / ERP', '项目推进', '团队协作'] }
   ]
 };
