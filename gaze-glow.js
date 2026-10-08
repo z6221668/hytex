@@ -61,6 +61,7 @@
     }
     if (modal || window.HYTEX_ROOM?.state.introLocked) return null;
     const viewport = document.getElementById('journey-viewport');
+    if (window.HYTEX_ROOM?.canNavigate) return window.HYTEX_ROOM.canNavigate(direction) ? viewport : null;
     return viewport?.getClientRects().length && canScroll(viewport) ? viewport : null;
   }
 
@@ -96,6 +97,7 @@
       const direction = edgeDirection;
       edgeBlocked = direction;
       resetEdge(); resetDwell();
+      if (scroller === document.getElementById('journey-viewport') && window.HYTEX_ROOM?.navigate) { window.HYTEX_ROOM.navigate(direction); return true; }
       scroller.scrollBy({ top: direction * Math.round(Math.min(480, scroller.clientHeight * .65)), behavior: reducedMotion.matches ? 'instant' : 'smooth' });
     }
     return true;

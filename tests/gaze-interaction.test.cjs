@@ -6,7 +6,7 @@ const path = require('node:path');
 const { createGazeFilter } = require('../gaze-filter.js');
 
 // Replay gaze traces without opening a camera or depending on inference speed.
-function setup() {
+function setup(room) {
   let now = 1000;
   let covered = false;
   const controls = [];
@@ -42,7 +42,7 @@ function setup() {
     }
   };
   const context = {
-    document, window: { createGazeFilter, addEventListener() {} }, location: { origin: 'http://localhost' },
+    document, window: { createGazeFilter, HYTEX_ROOM: room, addEventListener() {} }, location: { origin: 'http://localhost' },
     innerWidth: 1000, innerHeight: 800, getComputedStyle: () => ({ overflowY: 'auto' }),
     matchMedia: () => ({ matches: false }), performance: { now: () => now },
     requestAnimationFrame: () => 1, cancelAnimationFrame() {}, setTimeout, clearTimeout
@@ -205,4 +205,15 @@ test('replacement control requires looking away after a click', () => {
   for (let i = 0; i < 20; i++) env.gaze(900, 700);
   for (let i = 0; i < 25; i++) env.gaze();
   assert.equal(replacement.clicks, 1);
+});
+
+test('gaze edge navigation turns one whole exhibition page', () => {
+  let page = 2;
+  const env = setup({ state: {}, canNavigate: direction => page + direction >= 0 && page + direction <= 6, navigate: direction => { page += direction; } });
+  for (let i = 0; i < 40; i++) env.edge(770);
+  assert.equal(page, 3);
+  assert.equal(env.scrollCalls.length, 0, 'page navigation must not also issue pixel scrolling');
+  for (let i = 0; i < 7; i++) env.edge(400);
+  for (let i = 0; i < 17; i++) env.edge(20);
+  assert.equal(page, 2);
 });
