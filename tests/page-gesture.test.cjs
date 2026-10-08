@@ -10,8 +10,6 @@ test('a long trackpad gesture including momentum turns only one page', () => {
     if (direction) turns.push(direction);
   }
   assert.deepEqual(turns, [1]);
-  assert.equal(gesture.ownsMomentum(3, 2400), true, 'momentum must not scroll the newly displayed panel');
-  assert.equal(gesture.ownsMomentum(80, 2700), false);
   assert.equal(gesture.wheel(80, 2700), 1);
 });
 
@@ -24,11 +22,10 @@ test('small movements and rapid reversal cannot flash through pages', () => {
   assert.equal(gesture.wheel(100, 600), 1);
 });
 
-test('scrolling a panel requires a fresh gesture before leaving its page', () => {
+test('reset clears momentum when leaving and reentering the exhibition', () => {
   const gesture = createPageGesture();
-  assert.equal(gesture.wheel(100, 0, true), 0);
-  for (let now = 20; now < 1000; now += 20) assert.equal(gesture.wheel(80, now), 0);
-  assert.equal(gesture.wheel(80, 1300), 1);
+  assert.equal(gesture.wheel(100, 0), 1);
+  assert.equal(gesture.wheel(100, 20), 0);
   gesture.reset();
-  assert.equal(gesture.wheel(-80, 1320), -1);
+  assert.equal(gesture.wheel(-80, 40), -1);
 });

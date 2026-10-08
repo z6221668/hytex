@@ -134,3 +134,65 @@ body:has(#motion-toggle[aria-pressed="true"]) .interactive-radar{animation-play-
 @keyframes egg-shadow-breathe{0%,42%,74%,100%{transform:scaleX(1);opacity:.35}54%{transform:scaleX(.9);opacity:.65}}
 .photo-easter-menu.motion-paused *{animation-play-state:paused!important}
 @media(prefers-reduced-motion:reduce){.photo-easter-menu *{animation:none!important;transition:none!important}}
+
+/* Main chapters fit the viewport; long reading lives in the detail dialog. */
+.technology-sheet,.project-board,.project-inline-detail,.query-exhibit,.room-inspector,#room-content{overflow:visible}
+.technology-sheet{gap:22px 6vw;padding-bottom:0}
+.tech-group-label{margin-bottom:8px}
+.tech-tile,.tech-tile:nth-child(-n+2){min-height:42px;padding:8px 0}
+.tech-name,.tech-tile:nth-child(-n+2) .tech-name{font-size:23px}
+.tech-tile.featured .tech-name{font-size:34px}
+.project-inline-detail{bottom:auto;padding:24px}
+.project-inline-detail h2{font-size:26px;margin:12px 0}
+.project-full-link{display:block;margin-top:18px;padding:8px 0;color:#ccc;background:none;border:0;border-bottom:1px solid #444;font:inherit;font-size:12px;cursor:pointer}
+#interactive-room[data-chapter='3'] .room-inspector{max-height:none}
+#interactive-room[data-chapter='3'] .exhibit-reading h2,#interactive-room[data-chapter='3'] .exhibit-period,#interactive-room[data-chapter='3'] .exhibit-subtitle{display:none}
+#interactive-room[data-chapter='3'] .exhibit-reading p{margin:0}
+.query-code-open{display:none}
+.text-detail h2{margin:28px 0 20px;font-size:26px;color:#eee}
+.text-detail p{font-size:14px;line-height:1.9;color:#aaa}
+.text-detail pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:2.2}
+@media(max-width:900px),(max-height:760px){
+ .query-exhibit{grid-template-columns:1fr;gap:12px;align-content:start;padding-bottom:0}
+ .query-exhibit>.query-source{display:none}
+ .query-controls .query-code-open{display:block}
+ .query-diagram{grid-row:1}.query-controls{grid-row:2}.query-status{grid-row:3}
+ .query-lane{height:42px}.query-diagram-head{padding-bottom:12px}
+ .query-join{padding:14px 0 8px}.query-footnote{margin:6px 0}
+ .query-status{font-size:12px;margin:0}.query-controls{gap:14px}
+ .project-board{grid-template-rows:repeat(7,minmax(40px,1fr))}
+ .project-inline-detail h2{font-size:23px}.project-inline-detail p{margin-bottom:12px}
+}
+@media(max-width:700px){
+ .technology-sheet{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 22px}
+ .tech-group:nth-child(2){grid-column:2;grid-row:1 / span 3}
+ .tech-tile,.tech-tile:nth-child(-n+2){min-height:39px;padding:7px 0}
+ .tech-name,.tech-tile:nth-child(-n+2) .tech-name{font-size:20px}
+ .tech-tile.featured .tech-name{font-size:28px}
+ .tech-group-label{font-size:9px;letter-spacing:1px}
+ .project-board{grid-template-rows:repeat(7,minmax(40px,1fr))}
+ #interactive-room[data-chapter='3'] .room-inspector{top:calc(var(--mobile-content-top) + 148px);bottom:auto}
+ .query-controls{gap:12px;flex-wrap:nowrap}.query-controls button,.query-controls a{font-size:11px;white-space:nowrap}
+}
+@media(max-height:650px){
+ .room-heading{top:78px}.room-heading h2{font-size:28px;margin:6px 0}.room-heading p{margin:0}
+ .technology-sheet{gap:12px 5vw}.tech-tile,.tech-tile:nth-child(-n+2){min-height:33px;padding:5px 0}
+ .tech-name,.tech-tile:nth-child(-n+2) .tech-name{font-size:18px}.tech-tile.featured .tech-name{font-size:24px}
+ .project-inline-detail{top:130px;padding:18px}.project-inline-detail h2{font-size:20px}
+ .project-inline-detail p{font-size:12px;margin-bottom:10px}.project-full-link{margin-top:10px}
+ .query-exhibit{top:var(--mobile-content-top,180px)}
+ .query-lane{height:36px}.query-diagram-head{padding-bottom:8px}.query-join{padding:10px 0 5px}
+ .query-footnote{font-size:10px;line-height:1.6}.query-controls button,.query-controls a{padding:7px 0}
+}
+@media(max-height:500px) and (min-width:701px){
+ .room-heading{left:24px;top:86px;max-width:160px}.room-heading h2{font-size:26px}.room-heading p{font-size:11px}
+ #interactive-room[data-chapter='4'] .room-heading{max-width:160px}#interactive-room[data-chapter='4'] .room-heading h2{font-size:26px}
+ .technology-sheet{top:86px!important;left:220px;right:24px;bottom:20px;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+ .tech-group:nth-child(2){grid-column:auto;grid-row:auto}.tech-group-label{font-size:9px;letter-spacing:0}
+ .project-board{top:86px!important;left:220px;right:24px;bottom:24px;width:auto;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(40px,1fr));gap:0 20px}
+ .project-inline-detail{display:none}.project-flight-row{padding-left:27px}.project-row-title{font-size:11px}
+ .query-exhibit{top:86px;left:220px;right:24px;bottom:16px;gap:8px}.query-lane{height:32px}
+ .career-index{top:82px;left:200px;height:120px}.career-year{font-size:38px}.career-company{font-size:14px;margin-top:7px}.career-role{margin-top:4px}
+ #interactive-room[data-chapter='3'] .room-inspector{top:220px;left:220px;right:24px;bottom:auto;padding:12px 0}
+ #interactive-room[data-chapter='3'] .exhibit-reading p{font-size:12px;line-height:1.7}
+}

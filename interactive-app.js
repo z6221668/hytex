@@ -28,9 +28,18 @@
   detail.addEventListener('cancel',e=>{e.preventDefault();closeDetail();});
   detail.addEventListener('close',()=>{if(detail.open)return;highlightDemo.stop();detail.classList.remove('detail-ready');emit('spatial-modal',false);dialogOpener?.focus({preventScroll:true});detail.replaceChildren();});
   detail.addEventListener('click',e=>{if(e.target===detail){const r=detail.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeDetail();}});
+  function showTextDetail(title,content){
+    if(detail.open)return;dialogOpener=document.activeElement;detail.className='exhibition-dialog text-detail';
+    const close=node('button','exhibit-close','关闭 ×');close.type='button';close.addEventListener('click',closeDetail);
+    const heading=node('h2','',title);heading.id='text-detail-title';detail.setAttribute('aria-labelledby',heading.id);
+    detail.replaceChildren(close,heading,...content);detail.showModal();detail.scrollTop=0;emit('spatial-modal',true);
+  }
+  const codeButton=node('button','query-code-open','查看代码');codeButton.type='button';codeButton.setAttribute('aria-haspopup','dialog');
+  codeButton.addEventListener('click',()=>showTextDetail('Java 21 · 示例调用',[room.querySelector('.query-source pre').cloneNode(true)]));
+  room.querySelector('.query-controls').insertBefore(codeButton,room.querySelector('.query-controls a'));
   function makeTags(values){const g=node('div','exhibit-tags');values.forEach(v=>g.append(node('span','',v)));return g;}
   function showDetail(isPhoto,index){
-    if(detail.open)return;detail.replaceChildren();dialogOpener=document.activeElement;detail.removeAttribute('aria-labelledby');detail.classList.remove('is-highlight');detail.classList.toggle('is-photo',isPhoto);
+    if(detail.open)return;detail.replaceChildren();dialogOpener=document.activeElement;detail.removeAttribute('aria-labelledby');detail.className='exhibition-dialog';detail.classList.toggle('is-photo',isPhoto);
     const close=node('button','exhibit-close','关闭 ×');close.type='button';close.addEventListener('click',closeDetail);detail.append(close);
     if(isPhoto){const p=HYTEX_HOBBIES.photos[index],image=node('img','exhibit-full-photo');image.src=p.src;image.alt=p.alt;detail.append(image,node('p','exhibit-photo-caption',p.caption));}
     else{
@@ -83,11 +92,12 @@
       const skill=RESUME.skills[index],item=node('div','tech-index-item'),button=node('button','tech-tile'),name=node('span','tech-name',skill.name),description=node('div','tech-description');
       button.type='button';button.dataset.tech=index;button.setAttribute('aria-expanded','false');button.setAttribute('aria-controls',`tech-description-${index}`);if(index<2)button.classList.add('featured');
       button.append(name,node('span','tech-toggle','+'));description.id=`tech-description-${index}`;description.hidden=true;description.append(node('p','tech-kind',skill.kind),node('p','',skill.description));
-      button.addEventListener('click',()=>{const open=button.getAttribute('aria-expanded')!=='true';button.setAttribute('aria-expanded',String(open));description.hidden=!open;button.lastChild.textContent=open?'−':'+';if(open&&!matchMedia('(prefers-reduced-motion: reduce)').matches)description.animate([{opacity:0,transform:'translateY(-5px)'},{opacity:1,transform:'none'}],{duration:260,easing:'ease-out'});});
+      button.setAttribute('aria-haspopup','dialog');button.removeAttribute('aria-expanded');button.removeAttribute('aria-controls');
+      button.addEventListener('click',()=>showTextDetail(skill.name,[node('p','tech-kind',skill.kind),node('p','',skill.description)]));
       item.append(button,description);group.append(item);techTiles.push(button);
     });sheet.append(group);
   });
-  let pageLayoutFrame=0;
+  let textLayoutFrame=0,textRevision=0;
   const careerIndex=node('div','career-index'),careerStrip=node('div','career-strip');careerIndex.hidden=true;careerIndex.setAttribute('aria-label','按时间排列的公司经历');
   [...RESUME.experience].reverse().forEach((experience,order)=>{const index=RESUME.experience.length-1-order,button=node('button','career-word');button.type='button';button.dataset.company=index;button.append(node('span','career-year',experience.period.slice(0,4)),node('span','career-company',experience.shortCompany),node('span','career-role',experience.role));button.addEventListener('click',()=>{if(suppressClick||holdActivated){suppressClick=false;holdActivated=false;return;}choose(index);});careerStrip.append(button);});careerIndex.append(careerStrip);room.append(careerIndex);
   const photoLabel=node('p','photo-index-caption');photoLabel.hidden=true;room.append(photoLabel);
@@ -100,45 +110,71 @@
   eggMenu.append(eggButton);room.append(eggMenu);
   document.addEventListener('exhibition-egg-position',e=>{const {x,y,scale,visible,paused}=e.detail;eggMenu.hidden=!active||!started||current!==6||!visible;if(eggMenu.hidden)return;eggMenu.style.transform=`translate3d(${x}px,${y}px,0) translate(-50%,-50%) scale(${scale})`;eggMenu.classList.toggle('motion-paused',paused);});
 
-  function measurePageLayout(){
-    pageLayoutFrame=0;if(!active||!started)return;
+  function textElements(index){
+    const heading=index===0||index===5?[]:[...room.querySelectorAll('.room-heading > *')];
+    const selectors={1:'.tech-name,.tech-group-label,.tech-toggle',2:'.project-row-number,.project-row-title',3:'.career-year,.career-company,.career-role',4:'.query-diagram-head span,.query-task,.query-result,.query-collected span,.query-output,.query-footnote,.query-code-caption,.query-code-line i,.query-code-line code,.query-status,.query-controls > *',5:'.contact-kicker,.contact-email,.contact-actions > *,.contact-signature',6:'.photo-index-caption'};
+    return [...heading,...(selectors[index]?[...room.querySelectorAll(selectors[index])]:[])];
+  }
+  function captureText(index){
+    const lines=[];
+    textElements(index).forEach(element=>{
+      if(!element.getClientRects().length)return;element.dataset.particleText='';
+      const style=getComputedStyle(element);let clip={left:0,top:0,right:innerWidth,bottom:innerHeight};
+      for(let p=element.parentElement;p&&p!==room;p=p.parentElement){if(/auto|scroll|hidden/.test(getComputedStyle(p).overflowY)){const r=p.getBoundingClientRect();clip={left:Math.max(clip.left,r.left),top:Math.max(clip.top,r.top),right:Math.min(clip.right,r.right),bottom:Math.min(clip.bottom,r.bottom)};}}
+      const walker=document.createTreeWalker(element,NodeFilter.SHOW_TEXT),range=document.createRange();let textNode;
+      while((textNode=walker.nextNode())){
+        let line=null;
+        for(let i=0;i<textNode.length;i++){
+          range.setStart(textNode,i);range.setEnd(textNode,i+1);const r=range.getBoundingClientRect();if(!r.width||r.bottom<clip.top||r.top>clip.bottom||r.right<clip.left||r.left>clip.right)continue;
+          if(!line||Math.abs(line.y-r.y)>2){line={text:'',x:r.x,y:r.y,width:0,height:r.height,font:`${style.fontWeight} ${style.fontSize} ${style.fontFamily}`,spacing:style.letterSpacing};lines.push(line);}line.text+=textNode.data[i];line.width=r.right-line.x;
+        }
+      }
+    });return lines;
+  }
+  function measurePageText(notify=true){
+    textLayoutFrame=0;if(!active||!started)return;
     room.style.setProperty('--mobile-content-top',`${room.querySelector('.room-heading').getBoundingClientRect().bottom+18}px`);
-    if(current===1)sheet.style.top=`${room.querySelector('.room-heading').getBoundingClientRect().bottom+34}px`;
+    if(current===1){sheet.style.top=`${room.querySelector('.room-heading').getBoundingClientRect().bottom+34}px`;}
     if(current===2)measureProjectTargets();
     if(current===3)emit('exhibition-career-layout',{railY:careerIndex.getBoundingClientRect().bottom+12});
+    if(notify!==false)emit('exhibition-text-target',{index:current,revision:textRevision,labels:captureText(current)});
   }
-  function schedulePageLayout(){if(!pageLayoutFrame)pageLayoutFrame=requestAnimationFrame(measurePageLayout);}
-  window.addEventListener('resize',schedulePageLayout);
+  function schedulePageText(){if(!textLayoutFrame)textLayoutFrame=requestAnimationFrame(measurePageText);}
+  let textViewportWidth=innerWidth;
+  window.addEventListener('resize',()=>{const widthChanged=innerWidth!==textViewportWidth;textViewportWidth=innerWidth;if(active&&started){if(!widthChanged&&!room.classList.contains('particle-arriving')){measurePageText(false);return;}textRevision++;room.classList.add('particle-arriving');schedulePageText();}});
   document.addEventListener('exhibition-career-position',e=>{careerStrip.style.setProperty('--career-index',RESUME.experience.length-1-e.detail.value);});
+  document.addEventListener('exhibition-text-ready',e=>{
+    if(e.detail.index!==current||e.detail.revision!==textRevision)return;
+    room.classList.remove('particle-arriving','tech-forming');sheet.classList.add('tech-ready');
+    if(current===2){projectButtons.forEach((button,index)=>{button.classList.add('arrived');button.disabled=false;});if(projectDefaultPending&&innerWidth>700)showProjectInline(0);}
+    if(current===3)reveal(true);
+    if(current===4)queryView.replay();
+  });
+  const compactProjects=()=>innerWidth<=700||innerHeight<500;
   const projectBoard=$('project-board'),projectDetail=$('project-inline-detail');let projectAnimation=null,projectDefaultPending=false;
-  const projectButtons=RESUME.projects.map((project,index)=>{const button=node('button','project-flight-row');button.type='button';button.disabled=true;button.setAttribute('aria-controls',innerWidth<=700?'exhibition-dialog':'project-inline-detail');if(innerWidth<=700)button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-expanded','false');button.append(node('span','flight-marker',''),node('span','project-row-number',project.number),node('span','project-row-title',project.title));button.addEventListener('click',()=>showProjectInline(index));projectBoard.append(button);return button;});
+  const projectButtons=RESUME.projects.map((project,index)=>{const button=node('button','project-flight-row');button.type='button';button.disabled=true;button.setAttribute('aria-controls',compactProjects()?'exhibition-dialog':'project-inline-detail');if(compactProjects())button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-expanded','false');button.append(node('span','flight-marker',''),node('span','project-row-number',project.number),node('span','project-row-title',project.title));button.addEventListener('click',()=>showProjectInline(index));projectBoard.append(button);return button;});
   function measureProjectTargets(){if(!active||current!==2)return;const heading=room.querySelector('.room-heading').getBoundingClientRect();projectBoard.style.top=`${heading.bottom+28}px`;emit('exhibition-project-layout',projectButtons.map(button=>{const r=button.querySelector('.flight-marker').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2,height:r.height};}));}
   function showProjectInline(index){
-    if(innerWidth<=700){projectDefaultPending=false;selection=index;projectDetail.hidden=true;showDetail(false,index);return;}
+    if(compactProjects()){projectDefaultPending=false;selection=index;projectDetail.hidden=true;showDetail(false,index);return;}
     projectDefaultPending=false;selection=index;emit('exhibition-select',{index});const p=RESUME.projects[index],demo=window.HYTEX_PROJECT_DEMOS?.[index];projectAnimation?.cancel();
     const close=node('button','inline-detail-close','×');close.type='button';close.setAttribute('aria-label','收起项目详情');close.addEventListener('click',()=>{projectDetail.hidden=true;projectButtons.forEach(b=>b.setAttribute('aria-expanded','false'));});
-    const list=node('ol','inline-project-work');p.details.forEach(t=>list.append(node('li','',t)));
-    const content=[close,node('p','exhibit-overline',`${p.number} / ${p.label}`),node('h2','',p.title),node('p','exhibit-period',p.period),node('p','inline-project-summary',p.summary),makeTags(p.tags)];
+    const content=[close,node('p','exhibit-overline',`${p.number} / ${p.label}`),node('h2','',p.title),node('p','exhibit-period',p.period),node('p','inline-project-summary',p.cardDescription),makeTags(p.tags)];
     const highlight=node('button','project-highlight-link','项目亮点 ↗');highlight.type='button';highlight.setAttribute('aria-haspopup','dialog');highlight.addEventListener('click',()=>showHighlight(index));content.push(highlight);
-    content.push(node('h3','','负责的工作'),list);projectDetail.replaceChildren(...content);projectDetail.hidden=false;projectDetail.scrollTop=0;
+    const full=node('button','project-full-link','完整项目介绍 ↗');full.type='button';full.setAttribute('aria-haspopup','dialog');full.addEventListener('click',()=>showDetail(false,index));content.push(full);projectDetail.replaceChildren(...content);projectDetail.hidden=false;projectDetail.scrollTop=0;
     projectButtons.forEach((b,i)=>{b.classList.toggle('selected',i===index);b.setAttribute('aria-expanded',String(i===index));});
     if(!matchMedia('(prefers-reduced-motion: reduce)').matches)projectAnimation=projectDetail.animate([{opacity:.5},{opacity:1}],{duration:180,easing:'ease-out'});
   }
-  document.addEventListener('exhibition-project-arrived',e=>{if(current!==2||room.classList.contains('particle-arriving'))return;const button=projectButtons[e.detail.index];button.classList.add('arrived');button.disabled=false;if(e.detail.index===0&&innerWidth>700&&projectDefaultPending&&!room.classList.contains('particle-arriving'))showProjectInline(0);});
+  document.addEventListener('exhibition-project-arrived',e=>{if(current!==2||room.classList.contains('particle-arriving'))return;const button=projectButtons[e.detail.index];button.classList.add('arrived');button.disabled=false;if(e.detail.index===0&&!compactProjects()&&projectDefaultPending&&!room.classList.contains('particle-arriving'))showProjectInline(0);});
   window.addEventListener('resize',measureProjectTargets);
   function reveal(value){inspector.hidden=!value;room.classList.toggle('show-content',value);}
   function choose(index,play=false){stopHold();if(current===2&&play){showProjectInline(index);return;}selection=index;if(current===6)photoLabel.textContent=HYTEX_HOBBIES.photos[index]?.caption||'彩蛋 · 视线光晕';gather=0;renderContent();emit('exhibition-select',{index});if(play)activate();}
   function activate(){if(current===6&&selection===eggIndex){if(active&&started&&!document.querySelector('dialog[open]'))emit('gaze-open');return;}if(current===5)return;if(current===4){queryView.replay();return;}if(!active||!started||document.querySelector('dialog[open]'))return;reveal(false);emit('exhibition-action',{index:selection});}
   function updateChapter(index){
     cancelGesture();
-    room.classList.remove('particle-arriving','tech-forming');
+    if(started)emit('exhibition-text-source',{index:current,labels:captureText(current)});textRevision++;room.classList.toggle('particle-arriving',started);
     eggMenu.hidden=true;queryView.setActive(index===4,true);contact.hidden=index!==5;careerIndex.hidden=index!==3;photoLabel.hidden=index!==6;if(index===3)careerStrip.style.setProperty('--career-index','0');if(index===6)photoLabel.textContent=HYTEX_HOBBIES.photos[0].caption;copyStatus.textContent='';current=index;selection=index===1?1:index===3?3:0;gather=0;yaw=pitch=0;zoom=1;reveal(false);stopHold();
-    room.classList.toggle('tech-forming',index===1);sheet.hidden=index!==1;if(index===1){sheet.classList.remove('tech-ready');sheet.scrollTop=0;sheet.querySelectorAll('.tech-description').forEach(n=>n.hidden=true);techTiles.forEach(b=>{b.setAttribute('aria-expanded','false');b.lastChild.textContent='+';});}projectBoard.hidden=index!==2;projectDetail.hidden=true;projectAnimation?.cancel();if(index===2){projectDefaultPending=innerWidth>700;projectButtons.forEach(b=>{b.disabled=true;b.classList.remove('arrived','selected');b.setAttribute('aria-expanded','false');});requestAnimationFrame(measureProjectTargets);}room.dataset.chapter=index;$('room-kicker').textContent=scenes[index][0];$('room-title').textContent=scenes[index][1];$('room-hint').textContent=index===2&&innerWidth<=700?'点击项目，查看详情。':scenes[index][2];
-    hideLens();renderContent();emit('exhibition-chapter',{index});
-    room.classList.remove('tech-forming');sheet.classList.add('tech-ready');
-    if(index===2){projectButtons.forEach(button=>{button.disabled=false;button.classList.add('arrived');});if(innerWidth>700)showProjectInline(0);}
-    if(index===3)reveal(true);
-    if(started)schedulePageLayout();
+    room.classList.toggle('tech-forming',index===1);sheet.hidden=index!==1;if(index===1){sheet.classList.remove('tech-ready');sheet.scrollTop=0;sheet.querySelectorAll('.tech-description').forEach(n=>n.hidden=true);techTiles.forEach(b=>{b.lastChild.textContent='+';});}projectBoard.hidden=index!==2;projectDetail.hidden=true;projectAnimation?.cancel();if(index===2){projectDefaultPending=!compactProjects();projectButtons.forEach(b=>{b.disabled=true;b.classList.remove('arrived','selected');b.setAttribute('aria-expanded','false');});requestAnimationFrame(measureProjectTargets);}room.dataset.chapter=index;$('room-kicker').textContent=scenes[index][0];$('room-title').textContent=scenes[index][1];$('room-hint').textContent=index===2&&compactProjects()?'点击项目，查看详情。':scenes[index][2];
+    hideLens();renderContent();textElements(index).forEach(element=>element.dataset.particleText='');emit('exhibition-chapter',{index});if(started)schedulePageText();
   }
   function canNavigate(direction){
     return active&&started&&!introLocked&&!document.querySelector('dialog[open]')&&current+direction>=0&&current+direction<scenes.length;
@@ -156,51 +192,26 @@
     room.style.setProperty('--section-opacity','1');room.style.setProperty('--chapter-exit-opacity','1');
     cue.style.opacity=index===0?'1':'0';hideLens();
   }
-  function scrollWithin(target,delta){
-    for(let element=target instanceof Element?target:null;element&&element!==room;element=element.parentElement){
-      if(element===viewport)break;
-      if(element.scrollHeight<=element.clientHeight+1||!/(auto|scroll)/.test(getComputedStyle(element).overflowY))continue;
-      const before=element.scrollTop;
-      element.scrollTop=Math.max(0,Math.min(element.scrollHeight-element.clientHeight,before+delta));
-      if(Math.abs(element.scrollTop-before)>.1)return true;
-    }
-    return false;
-  }
   // One touch owner for the whole exhibition, including fixed overlay panels.
-  let panelTouch=null,touchCoast=0;
-  function stopTouchScroll(){if(touchCoast)cancelAnimationFrame(touchCoast);touchCoast=0;panelTouch=null;}
+  let panelTouch=null;
+  function stopTouchScroll(){panelTouch=null;}
   room.addEventListener('touchstart',e=>{
     stopTouchScroll();
     if(!active||!started||introLocked||document.querySelector('dialog[open]')||e.touches.length!==1)return;
-    const t=e.touches[0];panelTouch={target:e.target,chapter:current,x:t.clientX,y:t.clientY,lastY:t.clientY,lastTime:performance.now(),velocity:0,axis:null,scrolled:false,turned:false,horizontal:current===6||!!e.target.closest('.career-index')};
+    const t=e.touches[0];panelTouch={x:t.clientX,y:t.clientY,axis:null,turned:false,horizontal:current===6||!!e.target.closest('.career-index')};
   },{passive:true});
   room.addEventListener('touchmove',e=>{
     if(e.touches.length!==1){stopTouchScroll();return;}
     if(!panelTouch||!e.cancelable)return;
     // Prevent browser scrolling before its direction threshold cancels our pointer stream.
     e.preventDefault();
-    const t=e.touches[0],dx=t.clientX-panelTouch.x,dy=t.clientY-panelTouch.y,now=performance.now();
+    const t=e.touches[0],dx=t.clientX-panelTouch.x,dy=t.clientY-panelTouch.y;
     if(!panelTouch.axis&&Math.hypot(dx,dy)>7)panelTouch.axis=panelTouch.horizontal&&Math.abs(dx)>Math.abs(dy)*1.2?'x':'y';
     if(panelTouch.axis!=='y')return;
     stopHold();suppressClick=true;
-    const delta=panelTouch.lastY-t.clientY;
-    const target=panelTouch.chapter===current?panelTouch.target:viewport;
-    if(!panelTouch.turned){
-      if(scrollWithin(target,delta))panelTouch.scrolled=true;
-      else if(!panelTouch.scrolled&&Math.abs(dy)>=55){panelTouch.turned=true;navigate(dy<0?1:-1);}
-    }
-    panelTouch.velocity=delta/Math.max(8,now-panelTouch.lastTime);panelTouch.lastY=t.clientY;panelTouch.lastTime=now;
+    if(!panelTouch.turned&&Math.abs(dy)>=55){panelTouch.turned=true;navigate(dy<0?1:-1);}
   },{passive:false});
-  room.addEventListener('touchend',()=>{
-    const gesture=panelTouch;panelTouch=null;
-    if(!gesture||gesture.turned||!gesture.scrolled||gesture.axis!=='y'||performance.now()-gesture.lastTime>100||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    let velocity=Math.max(-1.6,Math.min(1.6,gesture.velocity)),previous=performance.now(),elapsed=0;
-    const coast=now=>{touchCoast=0;if(!active||introLocked||document.querySelector('dialog[open]'))return;const dt=Math.min(32,Math.max(0,now-previous));previous=now;elapsed+=dt;
-      if(gesture.chapter!==current||!scrollWithin(gesture.target,velocity*dt))return;velocity*=Math.exp(-dt/110);
-      if(Math.abs(velocity)>.03&&elapsed<650)touchCoast=requestAnimationFrame(coast);
-    };
-    if(Math.abs(velocity)>.08)touchCoast=requestAnimationFrame(coast);
-  },{passive:true});
+  room.addEventListener('touchend',stopTouchScroll,{passive:true});
   room.addEventListener('touchcancel',stopTouchScroll,{passive:true});
   window.addEventListener('blur',stopTouchScroll);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTouchScroll();});
   document.addEventListener('spatial-modal',e=>{if(e.detail)stopTouchScroll();});
@@ -209,8 +220,7 @@
     if(!active||!started||e.ctrlKey||document.querySelector('dialog[open]')||!e.cancelable||Math.abs(e.deltaX)>Math.abs(e.deltaY))return;
     const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?viewport.clientHeight:1);
     const now=performance.now();
-    const consumed=!pageGesture.ownsMomentum(delta,now)&&scrollWithin(e.target,delta);
-    const direction=pageGesture.wheel(delta,now,consumed);
+    const direction=pageGesture.wheel(delta,now);
     if(direction)navigate(direction);
     e.preventDefault();
   },{passive:false});
